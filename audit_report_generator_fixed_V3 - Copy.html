@@ -855,7 +855,9 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     'hi':'Hindi','zh-CN':'Chinese','ru':'Russian','pt':'Portuguese','ja':'Japanese'
   };
 
-  async function translateChunk(text, lang, apiConfig) {
+    let currentReportLang = 'en';
+
+    async function translateChunk(text, lang, apiConfig) {
     const { key, model } = apiConfig || getApiConfig();
     if(!key) throw new Error('Missing OpenAI API key');
 
@@ -921,7 +923,8 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     return translateChunk(text, lang, apiConfig);
   }
 
-  async function translateReportContent(lang) {
+    async function translateReportContent(lang) {
+      currentReportLang = lang || 'en';
     const reportOutput = document.getElementById('reportOutput');
     if(!reportOutput || !reportOutput.innerHTML.trim()) return;
 
@@ -936,9 +939,9 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       textNodes.push(walker.currentNode);
     }
 
-    for(const node of textNodes) {
-      const original = node.nodeValue;
-      try {
+      for(const node of textNodes) {
+        const original = node.nodeValue;
+        try {
         showBusy(true, 'Translating report...');
         const translated = await translateWithChunks(original, lang);
         node.nodeValue = translated;
@@ -948,7 +951,7 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     }
   }
 
-  document.getElementById('btnTranslate')?.addEventListener('click', async()=>{
+    document.getElementById('btnTranslate')?.addEventListener('click', async()=>{
     const txFromSum=document.getElementById('txFromSummary')?.checked;
     const text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
     if(!text){ toast('⚠️ No text to translate'); return; }
@@ -957,11 +960,11 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     const lang=document.getElementById('targetLang')?.value||'en';
     showBusy(true, 'Translating...');
     try{
-      const txEl=document.getElementById('translated');
-      const translatedText = await translateWithChunks(text, lang);
-      if(txEl) txEl.value = translatedText;
+        const txEl=document.getElementById('translated');
+        const translatedText = await translateWithChunks(text, lang);
+        if(txEl) txEl.value = translatedText;
 
-      await translateReportContent(lang);
+        await translateReportContent(lang);
 
       toast(`✅ Translated to ${langMap[lang]||lang}`);
       updateTtsCharCount();
@@ -972,7 +975,7 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     finally{ showBusy(false); }
   });
 
-  function getSelectedTtsText() {
+    function getSelectedTtsText() {
     const ttsFromSum=document.getElementById('ttsFromSummary')?.checked;
     const ttsFromTx=document.getElementById('ttsFromTranslated')?.checked;
     if(ttsFromTx){ return document.getElementById('translated')?.value||''; }
@@ -1236,8 +1239,20 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
         const f=findingsMap.get(currentNo); 
         if(f && f.text && f.text.length<280){ 
           f.text+=' '+l; 
-        } 
+        }
       }
+    }
+
+    async function buildDistributionText(overallLabel, totalTxt) {
+      const base = `Overall Rating: <strong>${overallLabel}</strong>. ${totalTxt}`;
+      if(currentReportLang && currentReportLang !== 'en') {
+        try {
+          return await translateWithChunks(base, currentReportLang);
+        } catch(err) {
+          console.error('Distribution translation failed', err);
+        }
+      }
+      return base;
     }
     
     const nums=Array.from(findingsMap.keys()).map(k=>parseInt(k.split('.')[1],10)); 
@@ -1530,7 +1545,7 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     setTimeout(() => {
       const selects = document.querySelectorAll('#reportOutput .priority-select');
 
-      function recalcCounts(){
+        async function recalcCounts(){
         let h=0,m=0,l=0;
         selects.forEach(s => {
           const v=s.value;
@@ -1568,19 +1583,20 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
           if(ph) ph.textContent = phv + '%';
           if(pm) pm.textContent = pmv + '%';
           if(pl) pl.textContent = plv + '%';
-          if(overallEl){
-            const categories=[];
-            if(h>0) categories.push(`<strong>${h}</strong> finding(s) (<strong>${phv}%</strong>) require immediate attention`);
-            if(m>0) categories.push(`<strong>${m}</strong> finding(s) (<strong>${pmv}%</strong>) require moderate attention`);
-            if(l>0) categories.push(`<strong>${l}</strong> finding(s) (<strong>${plv}%</strong>) require low attention`);
-            let totalTxt = `In summary, we found <strong>${t}</strong> findings`;
-            if(categories.length>0){
-              if(categories.length===1) totalTxt += ` out of which ${categories[0]}.`;
-              else if(categories.length===2) totalTxt += ` out of which ${categories[0]}, and ${categories[1]}.`;
-              else totalTxt += ` out of which ${categories[0]}, ${categories[1]}, and ${categories[2]}.`;
-            } else { totalTxt += `.`; }
-            overallEl.innerHTML = `Overall Rating: <strong>${overall}</strong>. ${totalTxt}`;
-          }
+            if(overallEl){
+              const categories=[];
+              if(h>0) categories.push(`<strong>${h}</strong> finding(s) (<strong>${phv}%</strong>) require immediate attention`);
+              if(m>0) categories.push(`<strong>${m}</strong> finding(s) (<strong>${pmv}%</strong>) require moderate attention`);
+              if(l>0) categories.push(`<strong>${l}</strong> finding(s) (<strong>${plv}%</strong>) require low attention`);
+              let totalTxt = `In summary, we found <strong>${t}</strong> findings`;
+              if(categories.length>0){
+                if(categories.length===1) totalTxt += ` out of which ${categories[0]}.`;
+                else if(categories.length===2) totalTxt += ` out of which ${categories[0]}, and ${categories[1]}.`;
+                else totalTxt += ` out of which ${categories[0]}, ${categories[1]}, and ${categories[2]}.`;
+              } else { totalTxt += `.`; }
+              const distText = await buildDistributionText(overall, totalTxt);
+              overallEl.innerHTML = distText;
+            }
         }catch(e){}
       }
 
@@ -1726,12 +1742,14 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
   }
 
   document.getElementById('btnGenerateReport')?.addEventListener('click', async()=>{
-    const btn=document.getElementById('btnGenerateReport');
-    const { key, model } = getApiConfig();
-    const text=(document.getElementById('sourceText')?.value||'').trim();
-    
-    if(!text){ 
-      toast('⚠️ Please enter audit text first'); 
+      const btn=document.getElementById('btnGenerateReport');
+      const { key, model } = getApiConfig();
+      const text=(document.getElementById('sourceText')?.value||'').trim();
+
+      currentReportLang = 'en';
+
+      if(!text){
+        toast('⚠️ Please enter audit text first');
       return; 
     }
     
@@ -2145,7 +2163,7 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       document.addEventListener('DOMContentLoaded', function(){
         const selects = document.querySelectorAll('.priority-select');
 
-        function recalcCounts(){
+        async function recalcCounts(){
           let h=0,m=0,l=0;
           selects.forEach(s=>{
             const v=s.value;
@@ -2186,13 +2204,14 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
               if(h>0) categories.push('<strong>'+h+'</strong> finding(s) (<strong>'+phv+'%</strong>) require immediate attention');
               if(m>0) categories.push('<strong>'+m+'</strong> finding(s) (<strong>'+pmv+'%</strong>) require moderate attention');
               if(l>0) categories.push('<strong>'+l+'</strong> finding(s) (<strong>'+plv+'%</strong>) require low attention');
-              var totalTxt = 'In summary, we found <strong>'+t+'</strong> findings';
-              if(categories.length>0){
-                if(categories.length===1) totalTxt += ' out of which '+categories[0]+'.';
-                else if(categories.length===2) totalTxt += ' out of which '+categories[0]+', and '+categories[1]+'.';
-                else totalTxt += ' out of which '+categories[0]+', '+categories[1]+', and '+categories[2]+'.';
-              } else { totalTxt += '.'; }
-              overallEl.innerHTML = 'Overall Rating: <strong>'+overallText+'</strong>. '+totalTxt;
+                var totalTxt = 'In summary, we found <strong>'+t+'</strong> findings';
+                if(categories.length>0){
+                  if(categories.length===1) totalTxt += ' out of which '+categories[0]+'.';
+                  else if(categories.length===2) totalTxt += ' out of which '+categories[0]+', and '+categories[1]+'.';
+                  else totalTxt += ' out of which '+categories[0]+', '+categories[1]+', and '+categories[2]+'.';
+                } else { totalTxt += '.'; }
+                const distText = await buildDistributionText(overallText, totalTxt);
+                overallEl.innerHTML = distText;
             }
           }catch(e){}
           
