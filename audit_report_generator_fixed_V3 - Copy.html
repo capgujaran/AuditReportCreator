@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Khalifa University Audit Report Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PDF.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js for Word documents -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- html2canvas for video generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    :root{ 
+      --primary: #0057B8;
+      --primary-dark: #003d82;
+      --high:#dc2626; 
+      --med:#f59e0b; 
+      --low:#16a34a;
+      --bg-primary: #f8fafc;
+      --bg-card: #ffffff;
+    }
+    body { background: #f1f5f9; min-height: 100vh; }
+    .main-container { background: var(--bg-primary); border-radius: 1rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .card { background: var(--bg-card); border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; transition: all 0.3s ease; }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .card-header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 1rem 1.5rem; border-radius: 0.75rem 0.75rem 0 0; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.75rem; }
+    .card-body { padding: 1.5rem; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 0.625rem 1.5rem; border-radius: 0.5rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 87, 184, 0.3); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0, 87, 184, 0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: white; color: #475569; padding: 0.625rem 1.5rem; border-radius: 0.5rem; font-weight: 500; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.3s ease; }
+    .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+    .btn-success { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 0.625rem 1.5rem; border-radius: 0.5rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3); }
+    .btn-success:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(22, 163, 74, 0.4); }
+    .btn-warning { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 0.625rem 1.5rem; border-radius: 0.5rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3); }
+    .btn-warning:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4); }
+    .input-field, .select-field, .textarea-field { width: 100%; padding: 0.625rem 1rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.3s ease; background: white; }
+    .input-field:focus, .select-field:focus, .textarea-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 87, 184, 0.1); }
+    .textarea-field { resize: vertical; font-family: 'Inter', monospace; }
+    .badge { font-weight: 600; padding: 0.375rem 0.875rem; border-radius: 999px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge.high { background: rgba(220, 38, 38, 0.1); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.2); }
+    .badge.med { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge.low { background: rgba(22, 163, 74, 0.1); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.2); }
+    .no-high { background: var(--high); color: #fff; }
+    .no-med { background: var(--med); color: #fff; }
+    .no-low { background: var(--low); color: #fff; }
+    .header-banner { background: linear-gradient(135deg, #0057B8 0%, #003d82 100%); color: white; padding: 2rem; border-radius: 1rem 1rem 0 0; text-align: center; }
+    .header-banner h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .header-banner p { font-size: 1rem; opacity: 0.95; font-weight: 300; }
+    .info-box { background: #e6f2ff; border-left: 4px solid #0057B8; padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem; color: #003d82; margin-top: 0.75rem; }
+    .report-header-img { max-width: 600px; margin: 0 auto 2rem auto; display: block; border-radius: 0.5rem; }
+    .report-title { font-size: 1.75rem; font-weight: 700; color: #0f172a; margin-bottom: 1.5rem; text-align: center; padding-bottom: 1rem; border-bottom: 3px solid var(--primary); }
+    .stat-card { background: white; border-radius: 0.75rem; padding: 1.5rem; text-align: center; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #0f172a; }
+    .stat-label { font-size: 0.875rem; color: #64748b; margin-top: 0.25rem; }
+    table { border-collapse: separate; border-spacing: 0; }
+    thead th { background: linear-gradient(135deg, #0057B8 0%, #003d82 100%); color: white; font-weight: 600; text-align: left; padding: 1rem; }
+    thead th:first-child { border-radius: 0.5rem 0 0 0; }
+    thead th:last-child { border-radius: 0 0.5rem 0 0; }
+    tbody td { padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr:last-child td:first-child { border-radius: 0 0 0 0.5rem; }
+    tbody tr:last-child td:last-child { border-radius: 0 0 0.5rem 0; }
+    .finding-title { font-weight: 600; color: #0f172a; margin-bottom: 0.5rem; }
+    .finding-summary { color: #475569; font-size: 0.875rem; line-height: 1.6; }
+    .toast { position: fixed; top: 1.5rem; right: 1.5rem; background: #1e293b; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 1000; font-size: 0.875rem; animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .icon { display: inline-block; width: 1.25rem; height: 1.25rem; }
+    /* File upload styles */
+    .file-upload-wrapper { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; transition: all 0.3s ease; }
+    .file-upload-wrapper:hover { border-color: var(--primary); background: #f1f5f9; }
+    .file-upload-wrapper.dragover { border-color: var(--primary); background: #e6f2ff; }
+    .file-name { font-size: 0.875rem; color: #64748b; margin-top: 0.5rem; font-style: italic; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+  <div class="max-w-7xl mx-auto main-container">
+    <!-- HEADER -->
+    <div class="header-banner">
+      <h1> Khalifa University Audit Report Generator</h1>
+      <p>Professional AI-Powered Audit Analysis & Reporting Suite</p>
+    </div>
+
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- API CONFIGURATION -->
+      <div class="card">
+        <div class="card-header">
+          <span>🔐</span>
+          <span>API Configuration</span>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">OpenAI API Key</label>
+              <input id="commonApiKey" type="password" placeholder="sk-..." class="input-field" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+              <select id="commonModel" class="select-field">
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4">GPT-4</option>
+              </select>
+            </div>
+          </div>
+          <div class="info-box">
+            💡 <strong>Tip:</strong> Enter your API key once to unlock all AI-powered features including summaries, translations, and enhanced reports.
+          </div>
+        </div>
+      </div>
+
+      <!-- INPUT SECTION -->
+      <div class="card">
+        <div class="card-header">
+          <span>📝</span>
+          <span>Step 1: Input Audit Text</span>
+        </div>
+        <div class="card-body">
+          <!-- File Upload Section -->
+          <div class="file-upload-wrapper" id="fileUploadWrapper">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">📄</span>
+                <div>
+                  <p class="text-sm font-medium text-gray-700">Upload PDF or Word Document</p>
+                  <p class="text-xs text-gray-500">Supported formats: .pdf, .doc, .docx</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx" class="hidden" />
+                <label for="fileInput" id="btnUploadFile" class="btn-primary" role="button" style="cursor:pointer; user-select:none;">📁 Choose File</label>
+              </div>
+            </div>
+            <div id="fileNameDisplay" class="file-name hidden"></div>
+          </div>
+          
+          <textarea id="sourceText" rows="8" placeholder="Paste your audit report text here..." class="textarea-field"></textarea>
+          <div class="flex justify-end gap-3 mt-4">
+            <button id="btnCopySrc" class="btn-secondary">📋 Copy</button>
+            <button id="btnClearSrc" class="btn-secondary">🗑️ Clear All</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARIZER -->
+      <div class="card">
+        <div class="card-header">
+          <span>📊</span>
+          <span>Step 2: Text Summarizer</span>
+        </div>
+        <div class="card-body">
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <label class="text-sm font-medium text-gray-700">Summary Mode:</label>
+            <select id="sumMode" class="select-field" style="width: auto; min-width: 250px;">
+              <option value="basic">Basic Summarizer</option>
+              <option value="executive">Executive Summary (AI-Powered)</option>
+            </select>
+          </div>
+          
+          <div id="basicWrap" class="flex items-center gap-3 mb-4">
+            <label class="text-sm font-medium text-gray-700">Sentences:</label>
+            <input id="sumN" type="number" min="1" max="10" value="3" class="input-field" style="width: 80px;" />
+            <button id="btnSummarizeLocal" class="btn-primary">▶️ Summarize</button>
+          </div>
+          
+          <div id="aiWrap" class="hidden mb-4">
+            <button id="btnAISummarize" class="btn-warning">🤖 Generate AI Summary</button>
+            <span class="text-xs text-gray-500 ml-3">(Requires API key)</span>
+          </div>
+          
+          <textarea id="aiSummary" rows="5" placeholder="Summary will appear here..." class="textarea-field bg-gray-50"></textarea>
+        </div>
+      </div>
+
+      <!-- TRANSLATOR -->
+      <div class="card">
+        <div class="card-header">
+          <span>🌐</span>
+          <span>Step 3: Language Translator</span>
+        </div>
+        <div class="card-body">
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <label class="text-sm font-medium text-gray-700">Target Language:</label>
+            <select id="targetLang" class="select-field" style="width: auto; min-width: 160px;">
+              <option value="en">English</option>
+              <option value="ar">Arabic</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
+              <option value="de">German</option>
+              <option value="hi">Hindi</option>
+              <option value="zh-CN">Chinese</option>
+              <option value="ru">Russian</option>
+              <option value="pt">Portuguese</option>
+              <option value="ja">Japanese</option>
+            </select>
+            
+            <div class="flex items-center gap-3 ml-4">
+              <span class="text-sm font-medium text-gray-700">Source:</span>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="radio" name="txSrc" id="txFromOriginal" checked class="text-cyan-600" />
+                <span>Original</span>
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="radio" name="txSrc" id="txFromSummary" class="text-cyan-600" />
+                <span>Summary</span>
+              </label>
+            </div>
+            
+            <button id="btnTranslate" class="btn-success ml-auto">🔄 Translate</button>
+          </div>
+          
+          <textarea id="translated" rows="5" placeholder="Translation will appear here..." class="textarea-field bg-gray-50"></textarea>
+        </div>
+      </div>
+
+      <!-- TEXT TO SPEECH -->
+      <div class="card">
+        <div class="card-header">
+          <span>🔊</span>
+          <span>Step 4: Text-to-Speech (OpenAI TTS)</span>
+        </div>
+        <div class="card-body">
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <span class="text-sm font-medium text-gray-700">Read from:</span>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="radio" name="ttsSrc" id="ttsFromOriginal" class="text-cyan-600" />
+              <span>Original</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="radio" name="ttsSrc" id="ttsFromSummary" checked class="text-cyan-600" />
+              <span>Summary</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="radio" name="ttsSrc" id="ttsFromTranslated" class="text-cyan-600" />
+              <span>Translated</span>
+            </label>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <label class="text-sm font-medium text-gray-700">Voice:</label>
+            <select id="ttsVoice" class="select-field" style="width: auto; min-width: 160px;">
+              <option value="alloy">Alloy (Neutral)</option>
+              <option value="echo" selected>Echo (Male)</option>
+              <option value="fable">Fable (British Male)</option>
+              <option value="onyx">Onyx (Deep Male)</option>
+              <option value="nova">Nova (Female)</option>
+              <option value="shimmer">Shimmer (Soft Female)</option>
+            </select>
+            
+            <label class="text-sm font-medium text-gray-700">Speed:</label>
+            <select id="ttsSpeed" class="select-field" style="width: auto; min-width: 120px;">
+              <option value="0.75">0.75x (Slow)</option>
+              <option value="1.0" selected>1.0x (Normal)</option>
+              <option value="1.25">1.25x (Fast)</option>
+              <option value="1.5">1.5x (Faster)</option>
+            </select>
+            
+            <button id="btnSpeak" class="btn-warning">🎤 Generate Audio</button>
+            <button id="btnStopTTS" class="btn-secondary">⏹️ Stop</button>
+          </div>
+          
+          <div class="info-box">
+            💡 <strong>Note:</strong> Uses OpenAI TTS API for high-quality voice synthesis. Audio will play automatically when ready.
+          </div>
+          
+          <audio id="ttsAudio" controls class="w-full mt-4 hidden"></audio>
+        </div>
+      </div>
+
+      <!-- GENERATE REPORT -->
+      <div class="card">
+        <div class="card-header">
+          <span>📄</span>
+          <span>Step 5: Generate Professional Audit Report</span>
+        </div>
+        <div class="card-body">
+          <p class="text-sm text-gray-600 mb-4">Transform your audit text into a comprehensive, AI-enhanced professional report with visual analytics.</p>
+          
+          <div class="flex flex-wrap gap-3 mb-4">
+            <button id="btnGenerateReport" class="btn-primary text-lg py-3 px-8">🚀 Generate Report</button>
+            <button id="btnGenerateAudioVisual" class="btn-warning text-lg py-3 px-8">🎬 Generate Audio Visual Report</button>
+          </div>
+          
+          <div class="info-box mb-4">
+            💡 <strong>Note:</strong> 
+            <br>• <strong>Generate Report:</strong> Creates HTML report with charts and formatting
+            <br>• <strong>Generate Audio Visual:</strong> Uses the audio from <em>Step 4</em> and the HTML report from <em>Step 5</em> if they already exist; otherwise it will run those steps automatically and then combine them into an audio‑visual report
+            <br>• Download buttons appear after generation
+            <br><br>
+            <strong>Audio Settings:</strong> Audio uses the source selected in Step 4 (Original Text, Summary, or Translated)
+            <br><br>
+            <strong>Troubleshooting:</strong> If audio fails:
+            <br>• Ensure your OpenAI API key is entered in Step 1
+            <br>• Check if text is too long (max 4000 chars for audio)
+            <br>• Try selecting "Summary" in Step 4 for shorter audio text
+            <br>• Check browser console (F12) for detailed error messages
+          </div>
+          
+          <div id="avStatus" class="hidden p-4 bg-green-50 rounded-lg border border-green-300 mb-4">
+            <div class="flex items-center gap-2 text-green-700 font-semibold mb-2">
+              <span>✅</span>
+              <span>Audio Visual Report Ready!</span>
+            </div>
+            <p class="text-sm text-green-600">
+              🎧 Audio player below • 📄 Scroll down for full report • 📥 Download buttons available
+            </p>
+          </div>
+          
+          <div id="downloadButtons" class="hidden flex flex-wrap gap-3 mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <button id="btnDownloadHTML" class="btn-success">📥 Download HTML Report</button>
+            <button id="btnDownloadAudio" class="btn-success hidden">🔊 Download Audio</button>
+          </div>
+
+          <div id="sizeControls" class="hidden mb-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
+            <div style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: #0f172a;">📐 Report Size Controls</div>
+            <div style="display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
+              <div>
+                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; font-weight: 500;">Logo Size</div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="logoSize" min="50" max="200" value="100" step="10" style="width: 100px;" />
+                  <span id="logoSizeLabel" style="font-size: 0.8rem; color: #64748b; min-width: 35px;">100%</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem; font-weight: 500;">Chart Size</div>
+                <div class="flex items-center gap-2">
+                  <input type="range" id="chartSize" min="50" max="200" value="100" step="10" style="width: 100px;" />
+                  <span id="chartSizeLabel" style="font-size: 0.8rem; color: #64748b; min-width: 35px;">100%</span>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; padding: 0.75rem; background: white; border-radius: 0.375rem; border: 1px solid #e5e7eb;">
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Distribution Title</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontDistTitle" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontDistTitleLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Distribution Text</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontDistText" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontDistTextLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Table Headers</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontTableHeaders" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontTableHeadersLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Summary Title</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontSummaryTitle" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontSummaryTitleLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Finding No.</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontFindingNo" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontFindingNoLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 0.25rem;">Summary Text</div>
+                  <div class="flex items-center gap-1">
+                    <input type="range" id="fontSummary" min="75" max="150" value="100" step="5" style="width: 80px;" />
+                    <span id="fontSummaryLabel" style="font-size: 0.7rem; color: #64748b; min-width: 30px;">100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <audio id="avAudio" controls class="w-full mb-4 hidden"></audio>
+          
+          <div id="reportOutput" class="mt-8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSY OVERLAY -->
+  <div id="busyOverlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" style="backdrop-filter: blur(4px);">
+    <div class="bg-white rounded-xl p-8 shadow-2xl text-center max-w-sm">
+      <div class="spinner mx-auto mb-4" style="border-color: var(--primary); border-top-color: transparent;"></div>
+      <div id="busyText" class="text-lg font-medium text-gray-700">Processing...</div>
+      <div class="text-sm text-gray-500 mt-2">Please wait</div>
+    </div>
+  </div>
+
+  <script>
+  // Global error handlers to surface JS errors as toasts (helps debugging if buttons don't work)
+  window.addEventListener('error', function(e){
+    try{ console.error('Uncaught error', e.error || e.message || e); toast('⚠️ JS Error: ' + (e.error?.message || e.message || String(e))); }catch(err){}
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    try{ console.error('Unhandled rejection', e.reason); toast('⚠️ Promise Rejection: ' + (e.reason?.message || String(e.reason))); }catch(err){}
+  });
+  console.log('Audit report script init');
+  
+  let sizeMultipliers = { logo: 1, chart: 1, distTitle: 1, distText: 1, tableHeaders: 1, findingNo: 1, summaryTitle: 1, summary: 1 };
+  
+  function applySizeMultipliers() {
+    const out = document.getElementById('reportOutput');
+    if (!out) return;
+    
+    const logo = out.querySelector('img.report-header-img');
+    if (logo) {
+      logo.style.maxWidth = (sizeMultipliers.logo * 100) + '%';
+    }
+    
+    const pie = out.querySelector('#pie');
+    if (pie) {
+      pie.style.width = (sizeMultipliers.chart * 250) + 'px';
+      pie.style.height = (sizeMultipliers.chart * 250) + 'px';
+    }
+    
+    // Finding Distribution title (use class selector)
+    const distTitle = out.querySelector('.dist-title');
+    if (distTitle) {
+      distTitle.style.fontSize = (sizeMultipliers.distTitle * 100) + '%';
+    }
+    
+    // Table headers (all th elements: Finding Details, Finding No., Priority)
+    const tableHeaders = out.querySelectorAll('thead th');
+    tableHeaders.forEach(th => {
+      th.style.fontSize = (sizeMultipliers.tableHeaders * 100) + '%';
+    });
+    
+    // Finding No. cells
+    const findingNoCells = out.querySelectorAll('td.finding-no');
+    findingNoCells.forEach(cell => {
+      cell.style.fontSize = (sizeMultipliers.findingNo * 100) + '%';
+    });
+    
+    // Finding summary title (finding-title class)
+    const summaryTitles = out.querySelectorAll('.finding-title');
+    summaryTitles.forEach(title => {
+      title.style.fontSize = (sizeMultipliers.summaryTitle * 100) + '%';
+    });
+    
+    // Finding summary text
+    const summaryTexts = out.querySelectorAll('.finding-summary');
+    summaryTexts.forEach(text => {
+      text.style.fontSize = (sizeMultipliers.summary * 100) + '%';
+    });
+    
+    // Distribution text (counts and percentages)
+    const distElems = out.querySelectorAll('#dist-high-count, #dist-high-pct, #dist-med-count, #dist-med-pct, #dist-low-count, #dist-low-pct');
+    distElems.forEach(el => {
+      const container = el.closest('span') || el;
+      container.style.fontSize = (sizeMultipliers.distText * 100) + '%';
+    });
+    // Also scale the overall distribution paragraph (detailed summary)
+    const distOverall = out.querySelector('#dist-overall');
+    if (distOverall) distOverall.style.fontSize = (sizeMultipliers.distText * 100) + '%';
+  }
+  
+  document.getElementById('logoSize')?.addEventListener('input', function(e) {
+    sizeMultipliers.logo = parseInt(e.target.value) / 100;
+    document.getElementById('logoSizeLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('chartSize')?.addEventListener('input', function(e) {
+    sizeMultipliers.chart = parseInt(e.target.value) / 100;
+    document.getElementById('chartSizeLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('fontDistTitle')?.addEventListener('input', function(e) {
+    sizeMultipliers.distTitle = parseInt(e.target.value) / 100;
+    document.getElementById('fontDistTitleLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+
+  document.getElementById('fontDistText')?.addEventListener('input', function(e) {
+    sizeMultipliers.distText = parseInt(e.target.value) / 100;
+    document.getElementById('fontDistTextLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('fontTableHeaders')?.addEventListener('input', function(e) {
+    sizeMultipliers.tableHeaders = parseInt(e.target.value) / 100;
+    document.getElementById('fontTableHeadersLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('fontFindingNo')?.addEventListener('input', function(e) {
+    sizeMultipliers.findingNo = parseInt(e.target.value) / 100;
+    document.getElementById('fontFindingNoLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('fontSummaryTitle')?.addEventListener('input', function(e) {
+    sizeMultipliers.summaryTitle = parseInt(e.target.value) / 100;
+    document.getElementById('fontSummaryTitleLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  document.getElementById('fontSummary')?.addEventListener('input', function(e) {
+    sizeMultipliers.summary = parseInt(e.target.value) / 100;
+    document.getElementById('fontSummaryLabel').textContent = e.target.value + '%';
+    applySizeMultipliers();
+  });
+  
+  // PDF.js worker configuration
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const srcEl=document.getElementById('sourceText');
+  const outEl=document.getElementById('aiSummary');
+  const sumModeEl=document.getElementById('sumMode');
+  const basicWrap=document.getElementById('basicWrap');
+  const aiWrap=document.getElementById('aiWrap');
+
+  function showBusy(show, text='Processing...'){
+    const ov=document.getElementById('busyOverlay');
+    const tx=document.getElementById('busyText');
+    if(ov){ ov.classList.toggle('hidden', !show); }
+    if(tx){ tx.textContent=text; }
+  }
+
+  function toast(msg, dur=3000){
+    const t=document.createElement('div');
+    t.textContent=msg;
+    t.className='toast';
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), dur);
+  }
+
+  function getApiConfig() {
+    const key = (document.getElementById('commonApiKey')?.value || '').trim();
+    const model = document.getElementById('commonModel')?.value || 'gpt-4o-mini';
+    return { key, model };
+  }
+
+  // File upload handlers
+  document.getElementById('btnUploadFile')?.addEventListener('click', () => {
+    document.getElementById('fileInput')?.click();
+  });
+
+  document.getElementById('fileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileName = file.name;
+    const fileExt = fileName.split('.').pop().toLowerCase();
+
+    if (fileNameDisplay) {
+      fileNameDisplay.textContent = `📄 ${fileName}`;
+      fileNameDisplay.classList.remove('hidden');
+    }
+
+    showBusy(true, 'Reading file...');
+    toast('📄 Reading file...');
+
+    try {
+      let extractedText = '';
+
+      if (fileExt === 'pdf') {
+        extractedText = await extractTextFromPDF(file);
+      } else if (fileExt === 'doc' || fileExt === 'docx') {
+        extractedText = await extractTextFromWord(file);
+      } else {
+        throw new Error('Unsupported file format. Please upload PDF or Word document.');
+      }
+
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No text could be extracted from the file.');
+      }
+
+      if (srcEl) {
+        srcEl.value = extractedText;
+      }
+
+      toast(`✅ Text extracted successfully! (${extractedText.length} characters)`);
+    } catch (error) {
+      console.error('File processing error:', error);
+      toast(`❌ Error: ${error.message}`);
+      if (fileNameDisplay) {
+        fileNameDisplay.classList.add('hidden');
+      }
+    } finally {
+      showBusy(false);
+      e.target.value = '';
+    }
+  });
+
+  async function extractTextFromPDF(file) {
+    // Ensure pdf.js is available; if not, try to load it from CDN
+    async function loadScript(url){
+      return new Promise((resolve, reject)=>{
+        const s=document.createElement('script');
+        s.src=url; s.async=true;
+        s.onload=()=>resolve(); s.onerror=(e)=>reject(new Error('Failed to load '+url));
+        document.head.appendChild(s);
+      });
+    }
+
+    if (typeof pdfjsLib === 'undefined') {
+      try{
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }catch(e){
+        throw new Error('PDF.js library not loaded and could not be loaded automatically');
+      }
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + '\n\n';
+    }
+
+    return fullText.trim();
+  }
+
+  async function extractTextFromWord(file) {
+    // Ensure mammoth.js is available; if not, try to load it from CDN
+    async function loadScript(url){
+      return new Promise((resolve, reject)=>{
+        const s=document.createElement('script');
+        s.src=url; s.async=true;
+        s.onload=()=>resolve(); s.onerror=(e)=>reject(new Error('Failed to load '+url));
+        document.head.appendChild(s);
+      });
+    }
+
+    if (typeof mammoth === 'undefined') {
+      try{
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.16/mammoth.browser.min.js');
+      }catch(e){
+        throw new Error('Mammoth.js library not loaded and could not be loaded automatically');
+      }
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+    return result.value.trim();
+  }
+
+  const fileUploadWrapper = document.getElementById('fileUploadWrapper');
+  
+  fileUploadWrapper?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileUploadWrapper.classList.add('dragover');
+  });
+
+  fileUploadWrapper?.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    fileUploadWrapper.classList.remove('dragover');
+  });
+
+  fileUploadWrapper?.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    fileUploadWrapper.classList.remove('dragover');
+    
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const fileName = file.name;
+    const fileExt = fileName.split('.').pop().toLowerCase();
+
+    if (!['pdf', 'doc', 'docx'].includes(fileExt)) {
+      toast('❌ Please upload PDF or Word document only');
+      return;
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    fileInput.dispatchEvent(new Event('change'));
+  });
+
+  function getApiConfig() {
+    const key = (document.getElementById('commonApiKey')?.value || '').trim();
+    const model = document.getElementById('commonModel')?.value || 'gpt-4o-mini';
+    return { key, model };
+  }
+
+  sumModeEl?.addEventListener('change', ()=>{
+    const isAI = sumModeEl.value === 'executive';
+    basicWrap?.classList.toggle('hidden', isAI);
+    aiWrap?.classList.toggle('hidden', !isAI);
+  });
+
+  function splitSentences(text){ 
+    return text.split(/(?<=[.!?؟।])\s+/).filter(Boolean); 
+  }
+
+  document.getElementById('btnSummarizeLocal')?.addEventListener('click', ()=>{
+    const text=srcEl?.value||'';
+    if(!text){ toast('⚠️ No text to summarize'); return; }
+    const n=parseInt(document.getElementById('sumN')?.value||'3',10);
+    const sents=splitSentences(text).slice(0,n);
+    if(outEl) outEl.value=sents.join(' ');
+    toast('✅ Summary created');
+  });
+
+  const EXEC_PROMPT = "Generate a plain-text executive summary for an audit report using this format and guidelines. Do not include any markdown or special characters. Follow exactly the structure below:\n\nWe are pleased to inform that we have completed our Review of [DEPARTMENT/AREA NAME] which falls under the [PARENT OFFICE] as part of the [YEAR] Approved Audit Plan. The Audit covered period from [START DATE] till [END DATE].\n\nOverall rating: [RATING]\n\nIn summary, we found [TOTAL] findings out of which [only mention non-zero categories with their counts and percentages - e.g., '5 findings (45%) require immediate attention, 6 findings (55%) require moderate range of attention.' If a category has zero findings, do not mention it at all].\n\nArea findings:\nList each finding with its detailed summary (2-3 sentences, suitable for spoken presentation) WITHOUT the finding number and WITHOUT the area title:\n- [Detailed 2-3 sentence summary of the finding]\n- [Detailed 2-3 sentence summary of the finding]\n...\n\nGood practices:\n[Write a paragraph or list of bullet points describing the good practices observed. Each bullet point should be on a new line starting with a dash (-)]\n\nThe report has been discussed with process owners and their feedback, action plans, and timelines were considered.";
+
+  document.getElementById('btnAISummarize')?.addEventListener('click', async()=>{
+    const text=srcEl?.value||'';
+    if(!text){ toast('⚠️ No text to summarize'); return; }
+    const { key, model } = getApiConfig();
+    if(!key){ toast('⚠️ Please enter API key first'); return; }
+    showBusy(true, 'Creating executive summary with detailed findings...');
+    try{
+      // First, parse the findings to extract them
+      const parsed = parse(text);
+      
+      // Generate detailed summaries for each finding (same as used in HTML report and audio)
+      const detailedSummariesPrompt = `You are an expert auditor. For each finding below, provide a clear, professional summary (2-3 sentences, max 60 words) that explains the finding in detail as if speaking to management. Format as JSON: {"3.1": "summary text", "3.2": "summary text", ...}
+
+Findings:
+${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
+
+      const summariesResp = await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model,
+          messages:[
+            {role:'system', content:'You are an expert auditor. Provide clear, professional summaries suitable for spoken presentation.'},
+            {role:'user', content: detailedSummariesPrompt}
+          ],
+          temperature:0.3
+        })
+      });
+      
+      let findingSummaries = {};
+      if(summariesResp.ok) {
+        const summariesData = await summariesResp.json();
+        const summariesText = summariesData?.choices?.[0]?.message?.content?.trim()||'{}';
+        const jsonMatch = summariesText.match(/\{[\s\S]*\}/);
+        if(jsonMatch) {
+          findingSummaries = JSON.parse(jsonMatch[0]);
+        }
+      }
+      
+      // Build the findings text with detailed summaries
+      let findingsWithSummaries = '';
+      parsed.findings.forEach(f => {
+        const summary = findingSummaries[f.no] || f.text;
+        findingsWithSummaries += `${f.no}: ${summary}\n`;
+      });
+      
+      // Now generate the executive summary with the detailed summaries included
+      const execPrompt = `${EXEC_PROMPT}\n\nAudit text to summarize:\n\n${text}\n\nUse these detailed finding summaries in your response:\n${findingsWithSummaries}`;
+      
+      const resp=await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model,
+          messages:[
+            {role:'system', content:'You are an expert auditor. Generate executive summaries following the exact format provided, using the detailed finding summaries provided.'},
+            {role:'user', content: execPrompt}
+          ],
+          temperature:0.3
+        })
+      });
+      if(!resp.ok){ toast('❌ AI request failed'); return; }
+      const data=await resp.json();
+      const summary=data?.choices?.[0]?.message?.content?.trim()||'';
+      if(outEl) outEl.value=summary;
+      toast('✅ Executive summary created with detailed findings');
+    }catch(e){ 
+      console.error(e);
+      toast('❌ AI request failed'); 
+    }
+    finally{ showBusy(false); }
+  });
+
+  const langMap={
+    'en':'English','ar':'Arabic','fr':'French','es':'Spanish','de':'German',
+    'hi':'Hindi','zh-CN':'Chinese','ru':'Russian','pt':'Portuguese','ja':'Japanese'
+  };
+
+  async function translateChunk(text, lang) {
+    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${lang}`);
+    const data = await resp.json();
+    if(data?.responseData?.translatedText) {
+      return data.responseData.translatedText;
+    }
+    throw new Error('Translation failed');
+  }
+
+  document.getElementById('btnTranslate')?.addEventListener('click', async()=>{
+    const txFromSum=document.getElementById('txFromSummary')?.checked;
+    const text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
+    if(!text){ toast('⚠️ No text to translate'); return; }
+    const lang=document.getElementById('targetLang')?.value||'en';
+    showBusy(true, 'Translating...');
+    try{
+      const txEl=document.getElementById('translated');
+      
+      // Split into chunks of 400 characters to avoid API limit
+      if(text.length > 400) {
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        let chunks = [];
+        let currentChunk = '';
+        
+        for(const sentence of sentences) {
+          if((currentChunk + sentence).length > 400) {
+            if(currentChunk) chunks.push(currentChunk);
+            currentChunk = sentence;
+          } else {
+            currentChunk += sentence;
+          }
+        }
+        if(currentChunk) chunks.push(currentChunk);
+        
+        const translations = [];
+        for(let i = 0; i < chunks.length; i++) {
+          showBusy(true, `Translating... (${i+1}/${chunks.length})`);
+          const translated = await translateChunk(chunks[i].trim(), lang);
+          translations.push(translated);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Rate limit delay
+        }
+        
+        if(txEl) txEl.value = translations.join(' ');
+      } else {
+        // Single translation for short text
+        const translated = await translateChunk(text, lang);
+        if(txEl) txEl.value = translated;
+      }
+      
+      toast(`✅ Translated to ${langMap[lang]||lang}`);
+    }catch(e){ 
+      console.error('Translation error:', e);
+      toast('❌ Translation failed - text may be too long'); 
+    }
+    finally{ showBusy(false); }
+  });
+
+  // === TTS (OpenAI) ===
+  let currentAudio = null;
+  
+  document.getElementById('btnSpeak')?.addEventListener('click', async()=>{
+    const ttsFromSum=document.getElementById('ttsFromSummary')?.checked;
+    const ttsFromTx=document.getElementById('ttsFromTranslated')?.checked;
+    let text='';
+    if(ttsFromTx){ text=document.getElementById('translated')?.value||''; }
+    else if(ttsFromSum){ text=outEl?.value||''; }
+    else { text=srcEl?.value||''; }
+    
+    if(!text){ toast('⚠️ No text to speak'); return; }
+    
+    // Truncate if too long (OpenAI TTS has 4096 char limit)
+    if(text.length > 4000) {
+      text = text.substring(0, 4000) + '...';
+      toast('⚠️ Text truncated to 4000 characters');
+    }
+    
+    const { key, model } = getApiConfig();
+    if(!key){ toast('⚠️ Please enter API key first'); return; }
+    
+    const voice = document.getElementById('ttsVoice')?.value || 'alloy';
+    const speed = parseFloat(document.getElementById('ttsSpeed')?.value || '1.0');
+    
+    showBusy(true, 'Generating audio...');
+    
+    try{
+      const resp = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: speed
+        })
+      });
+      
+      if(!resp.ok) {
+        const error = await resp.text();
+        console.error('TTS error:', error);
+        toast('❌ TTS generation failed');
+        return;
+      }
+      
+      const audioBlob = await resp.blob();
+      currentAudioBlob = audioBlob; // Store for download
+      const audioUrl = URL.createObjectURL(audioBlob);
+      currentAudioUrl = audioUrl;
+      
+      const audioEl = document.getElementById('ttsAudio');
+      if(audioEl) {
+        audioEl.src = audioUrl;
+        audioEl.classList.remove('hidden');
+        audioEl.play();
+        currentAudio = audioEl;
+        
+        // Show download buttons
+        document.getElementById('downloadButtons')?.classList.remove('hidden');
+        document.getElementById('btnDownloadAudio')?.classList.remove('hidden');
+        
+        toast('✅ Audio generated successfully');
+      }
+    }catch(e){
+      console.error('TTS error:', e);
+      toast('❌ TTS generation failed');
+    }finally{
+      showBusy(false);
+    }
+  });
+
+  document.getElementById('btnStopTTS')?.addEventListener('click', ()=>{
+    const audioEl = document.getElementById('ttsAudio');
+    if(audioEl) {
+      audioEl.pause();
+      audioEl.currentTime = 0;
+    }
+    toast('⏹️ Audio stopped');
+  });
+
+  function badge(sev){
+    const cls=sev==='H'?'high':(sev==='M'?'med':'low');
+    const txt=sev==='H'?'High':(sev==='M'?'Medium':'Low');
+    return `<span class='badge ${cls}'>${txt}</span>`;
+  }
+
+  function pct(n,t){ return t>0? Math.round(n/t*100):0; }
+
+  function heuristicOverall({H,M,L}){
+    if(H>=3) return 'Needs Improvement';
+    if(H>=1) return 'Satisfactory';
+    if(M>=5) return 'Satisfactory';
+    return 'Good';
+  }
+
+  function drawPie(canvas, vals, zoomIndex=-1){
+    if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    const [h,m,l]=vals;
+    const total=h+m+l||1;
+    const colors=['#dc2626','#f59e0b','#16a34a'];
+    const labels=['High','Medium','Low'];
+    let cur=-Math.PI/2; // Start from top (12 o'clock position)
+    let cx=140, cy=140, r=100; // Centered in larger canvas
+    ctx.clearRect(0,0,280,280);
+    
+    // Draw pie slices
+    [h,m,l].forEach((v,i)=>{
+      if(v===0) return;
+      const slice=v/total*2*Math.PI;
+      
+      // If this slice is being zoomed, expand it
+      let sliceRadius = r;
+      let sliceCx = cx;
+      let sliceCy = cy;
+      if(i === zoomIndex){
+        sliceRadius = r * 1.15; // Zoom slice by 15%
+        const midAngle = cur + slice/2;
+        const offset = 15;
+        sliceCx = cx + Math.cos(midAngle) * offset;
+        sliceCy = cy + Math.sin(midAngle) * offset;
+      }
+      
+      ctx.fillStyle=colors[i];
+      ctx.beginPath();
+      ctx.moveTo(sliceCx,sliceCy);
+      ctx.arc(sliceCx,sliceCy,sliceRadius,cur,cur+slice);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Add text labels with count and percentage
+      const midAngle = cur + slice/2;
+      const textRadius = sliceRadius * 0.65; // Position text 65% from center
+      const textX = sliceCx + Math.cos(midAngle) * textRadius;
+      const textY = sliceCy + Math.sin(midAngle) * textRadius;
+      
+      const pct = Math.round((v/total)*100);
+      
+      // Draw text with white color and bold font
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 14px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = colors[i];
+      ctx.lineWidth = 3;
+      
+      // Draw label
+      ctx.strokeText(`${labels[i]}, ${v}`, textX, textY - 8);
+      ctx.fillText(`${labels[i]}, ${v}`, textX, textY - 8);
+      
+      // Draw percentage
+      ctx.font = 'bold 13px Inter, sans-serif';
+      ctx.strokeText(`${pct}%`, textX, textY + 8);
+      ctx.fillText(`${pct}%`, textX, textY + 8);
+      
+      cur+=slice;
+    });
+  }
+
+  function parse(text){
+    const lines=text.split(/\r?\n/); 
+    const get=(re)=>{const m=text.match(re); return m?m[1].trim():''};
+    const title=get(/Audit\s*Title\s*[:\-]\s*(.+)/i)||'Audit Report';
+    const findingsMap=new Map(); 
+    let currentNo=null;
+    
+    for(let i=0;i<lines.length;i++){
+      const l=(lines[i]||'').trim(); 
+      const m=l.match(/^3\.(\d+)\s*(.*)$/);
+      if(m){ 
+        const no=`3.${parseInt(m[1],10)}`;
+        currentNo=no; 
+        let rest=(m[2]||'').trim(); 
+        let sev=null; 
+        
+        // Check if severity is on the same line or next line
+        // Pattern 1: Check next line for standalone severity
+        if(!rest || rest.length < 5) {
+          let j=i+1;
+          while(j<lines.length && !(lines[j]||'').trim()){ j++; }
+          if(j<lines.length) {
+            const nextLine = (lines[j]||'').trim();
+            if(/^(High|Medium|Low)$/i.test(nextLine)) {
+              sev = nextLine[0].toUpperCase();
+              i = j; // Skip the severity line
+            } else if(!rest) {
+              rest = nextLine;
+            }
+          }
+        }
+        
+        // Pattern 2: Severity at end of line with various separators
+        if(!sev) {
+          // Try matching severity at the end with whitespace/newline
+          let sevMatch = rest.match(/[\s\n\r]+(High|Medium|Low)\s*$/i);
+          if(sevMatch) {
+            sev = sevMatch[1][0].toUpperCase();
+            rest = rest.substring(0, sevMatch.index).trim();
+          } else {
+            // Try matching severity after the title
+            sevMatch = rest.match(/^(.+?)[\s\t]+(High|Medium|Low)\s*$/i);
+            if(sevMatch) {
+              sev = sevMatch[2][0].toUpperCase();
+              rest = sevMatch[1].trim();
+            } else {
+              // Last resort: check if last word is severity
+              const words = rest.trim().split(/\s+/);
+              const lastWord = words[words.length - 1];
+              if(/^(High|Medium|Low)$/i.test(lastWord)) {
+                sev = lastWord[0].toUpperCase();
+                rest = words.slice(0, -1).join(' ').trim();
+              }
+            }
+          }
+        }
+        
+        // Clean up any remaining severity keywords from rest
+        rest = rest.replace(/\s*(High|Medium|Low)\s*$/i, '').trim();
+        
+        if(!rest){ 
+          let j=i+1; 
+          while(j<lines.length && !(lines[j]||'').trim()){ j++; } 
+          if(j<lines.length && !/^(High|Medium|Low)$/i.test((lines[j]||'').trim())){ 
+            rest=(lines[j]||'').trim(); 
+          } 
+        } 
+        findingsMap.set(no,{no,text:rest,sev}); 
+        continue; 
+      }
+      if(currentNo && /^(Background|Finding|Recommendation|Management Action Plan|Responsible Person|Timeline)\b/i.test(l)){ 
+        currentNo=null; 
+        continue; 
+      }
+      if(currentNo && l && !/^3\.(\d+)/.test(l) && !/^(High|Medium|Low)$/i.test(l)){ 
+        const f=findingsMap.get(currentNo); 
+        if(f && f.text && f.text.length<280){ 
+          f.text+=' '+l; 
+        } 
+      }
+    }
+    
+    const nums=Array.from(findingsMap.keys()).map(k=>parseInt(k.split('.')[1],10)); 
+    const total=findingsMap.size; // Use actual count of findings, not max number
+    let H=0,M=0,L=0; 
+    findingsMap.forEach(f=>{ 
+      if(f.sev==='H') H++; 
+      else if(f.sev==='M') M++; 
+      else if(f.sev==='L') L++; 
+    });
+    
+    if(H+M+L===0){ 
+      const totalsLine=lines.map(s=>s.replace(/\t/g,' ').trim()).find(s=>/^(\d+)\s+(\d+)\s+(\d+)$/.test(s)); 
+      if(totalsLine){ 
+        const mm=totalsLine.match(/(\d+)\s+(\d+)\s+(\d+)/); 
+        H=+mm[1]; M=+mm[2]; L=+mm[3]; 
+      } 
+    }
+    
+    let hLeft=H,mLeft=M,lLeft=L; 
+    const findings=Array.from(findingsMap.values())
+      .sort((a,b)=>parseInt(a.no.split('.')[1])-parseInt(b.no.split('.')[1]))
+      .map(f=>{ 
+        if(!f.text) f.text='—'; 
+        if(!f.sev){ 
+          if(hLeft>0){f.sev='H';hLeft--} 
+          else if(mLeft>0){f.sev='M';mLeft--} 
+          else if(lLeft>0){f.sev='L';lLeft--} 
+          else { f.sev='M'; } 
+        } 
+        return f; 
+      });
+    
+    // Recount based on actual findings (in case severities were assigned above)
+    H=findings.filter(f=>f.sev==='H').length; 
+    M=findings.filter(f=>f.sev==='M').length; 
+    L=findings.filter(f=>f.sev==='L').length; 
+    // Don't artificially adjust counts - use actual counts
+    
+    // Extract overall rating - handle multiple formats
+    let overall = '';
+    // Try format: Overall rating is/to be "Rating" or __Rating__
+    const ratingMatch1 = text.match(/overall\s+rating[^A-Za-z]*(?:is|to be)\s*["_\s]*([\w\s]+?)["_\s*]*/im);
+    // Try format with quotes: "Rating"
+    const ratingMatch2 = text.match(/overall\s+rating[^A-Za-z]*(?:is|to be)\s*["']([^"']+)["']/im);
+    // Try format with underscores: __Rating__
+    const ratingMatch3 = text.match(/overall\s+rating[^A-Za-z]*(?:is|to be)\s*_{1,2}([^_\*]+)_{1,2}/im);
+    
+    if(ratingMatch3) {
+      overall = ratingMatch3[1].trim();
+    } else if(ratingMatch2) {
+      overall = ratingMatch2[1].trim();
+    } else if(ratingMatch1) {
+      overall = ratingMatch1[1].trim().split(/[_\*]/)[0].trim();
+    } else {
+      overall = heuristicOverall({H,M,L});
+    }
+    
+    return {title, findings, counts:{H,M,L}, total, overall};
+  }
+
+  async function aiEnhancedSummaries(key, model, findings){
+    if(!key) {
+      return findings.reduce((acc,f)=>{ 
+        acc[f.no]= (f.text||'').split(/[:\-.]/)[0].trim().slice(0,180)||f.text; 
+        return acc; 
+      },{});
+    }
+    
+    const prompt = `You are an expert auditor. For each finding below, provide a clear, professional summary (2-3 sentences, max 60 words) that explains the finding in detail as if speaking to management. Format as JSON: {"3.1": "summary text", "3.2": "summary text", ...}
+
+Findings:
+${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
+
+    const body={ 
+      model, 
+      messages:[ 
+        {role:'system', content:'You are an expert auditor. Provide clear, professional summaries suitable for spoken presentation.'}, 
+        {role:'user', content: prompt} 
+      ], 
+      temperature:0.3 
+    }; 
+    
+    try{ 
+      const resp=await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST', 
+        headers:{'Authorization':`Bearer ${key}`, 'Content-Type':'application/json'}, 
+        body: JSON.stringify(body)
+      }); 
+      
+      if(!resp.ok){ return null; } 
+      
+      const data=await resp.json(); 
+      const txt=data?.choices?.[0]?.message?.content?.trim()||'{}';
+      
+      const jsonMatch = txt.match(/\{[\s\S]*\}/);
+      if(jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return JSON.parse(txt);
+    }catch(e){ 
+      return null; 
+    }
+  }
+
+  async function summarizeTextForGood(key, model, findings){
+    if(!key) return {summary:'', good:[]};
+    const body={ 
+      model, 
+      messages:[ 
+        {role:'system', content:'You are an auditor assistant. Summarize the findings crisp and identify good practices.'}, 
+        {role:'user', content:`Summarize these audit findings in 3-5 sentences. Then provide 2-4 short bullets of observed good practices.\nFindings:\n${findings.map(f=>`${f.no} ${f.text}`).join('\n')}`} 
+      ], 
+      temperature:0.3 
+    };
+    
+    const resp=await fetch('https://api.openai.com/v1/chat/completions',{ 
+      method:'POST', 
+      headers:{ 'Authorization':`Bearer ${key}`, 'Content-Type':'application/json' }, 
+      body: JSON.stringify(body) 
+    });
+    
+    if(!resp.ok){ return {summary:'', good:[]}; }
+    
+    const data=await resp.json(); 
+    const text=data?.choices?.[0]?.message?.content?.trim()||''; 
+    const parts=text.split(/Good Practices?:/i); 
+    const bullets=parts[1]? parts[1].split(/\n|\u2022|\-/).map(s=>s.trim()).filter(Boolean):[];
+    return {summary:(parts[0]||'').trim(), good: bullets};
+  }
+
+  function renderReport({title,total,overall,counts,findings, summaryMap, aiGood}){
+    const out=document.getElementById('reportOutput'); 
+    out.innerHTML='';
+    
+    // Add editable notice
+    const editNotice = document.createElement('div');
+    editNotice.style.cssText = 'background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: #92400e;';
+    editNotice.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.25rem;">✏️</span>
+        <span><strong>Editable Report:</strong> Click on any text in the report below to edit it. Your changes will be reflected in the downloaded HTML.</span>
+      </div>
+    `;
+    
+    // Create editable container
+    const editableContainer = document.createElement('div');
+    editableContainer.contentEditable = 'true';
+    editableContainer.style.cssText = 'outline: none; cursor: text; overflow: visible;';
+    
+    const headerImg = document.createElement('div');
+    headerImg.innerHTML = `<img src="file:///C:/Users/KU1422/Desktop/Logo/Audit%20Report.png" alt="Audit Report" class="report-header-img" onerror="this.style.display='none'" />`;
+    
+    const header=document.createElement('div'); 
+    header.className='report-title'; 
+    header.textContent=`${title}`;
+    
+    const statsGrid=document.createElement('div');
+    statsGrid.className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6';
+    statsGrid.innerHTML=`
+      <div class='stat-card'>
+        <div id='stat-total' class='stat-value'>${total}</div>
+        <div class='stat-label'>Total Findings</div>
+      </div>
+      <div class='stat-card' style='border-left: 4px solid var(--high);'>
+        <div id='stat-high' class='stat-value' style='color: var(--high);'>${counts.H}</div>
+        <div class='stat-label'>High Priority</div>
+      </div>
+      <div class='stat-card' style='border-left: 4px solid var(--med);'>
+        <div id='stat-med' class='stat-value' style='color: var(--med);'>${counts.M}</div>
+        <div class='stat-label'>Medium Priority</div>
+      </div>
+      <div class='stat-card' style='border-left: 4px solid var(--low);'>
+        <div id='stat-low' class='stat-value' style='color: var(--low);'>${counts.L}</div>
+        <div class='stat-label'>Low Priority</div>
+      </div>
+    `;
+    
+    const wrap=document.createElement('div'); 
+    wrap.className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-6';
+    wrap.style.overflow = 'visible';
+    
+    const left=document.createElement('div'); 
+    left.className='card-body' ;
+    left.style.background='white';
+    left.style.borderRadius='0.75rem';
+    left.style.border='1px solid #e2e8f0';
+    left.style.overflow = 'visible';
+    left.innerHTML=`
+      <div style='font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #0f172a; text-align: center;'>Findings Rating</div>
+      <div style='display: flex; justify-content: center; align-items: center; padding: 1.5rem; overflow: visible;'>
+        <canvas id='pie' width='280' height='280' style='display: block; width: 200px; height: 200px;'></canvas>
+      </div>
+    `;
+    
+    const right=document.createElement('div'); 
+    right.className='card-body'; 
+    right.style.background='white';
+    right.style.borderRadius='0.75rem';
+    right.style.border='1px solid #e2e8f0';
+    
+    // Build dynamic text showing only non-zero categories
+    const categories = [];
+    if(counts.H > 0) {
+      categories.push(`<strong>${counts.H}</strong> finding(s) (<strong>${pct(counts.H,total)}%</strong>) require immediate attention`);
+    }
+    if(counts.M > 0) {
+      categories.push(`<strong>${counts.M}</strong> finding(s) (<strong>${pct(counts.M,total)}%</strong>) require moderate attention`);
+    }
+    if(counts.L > 0) {
+      categories.push(`<strong>${counts.L}</strong> finding(s) (<strong>${pct(counts.L,total)}%</strong>) require low attention`);
+    }
+    
+    let totalTxt = `In summary, we found <strong>${total}</strong> findings`;
+    if(categories.length > 0) {
+      if(categories.length === 1) {
+        totalTxt += ` out of which ${categories[0]}.`;
+      } else if(categories.length === 2) {
+        totalTxt += ` out of which ${categories[0]}, and ${categories[1]}.`;
+      } else {
+        totalTxt += ` out of which ${categories[0]}, ${categories[1]}, and ${categories[2]}.`;
+      }
+    } else {
+      totalTxt += `.`;
+    } 
+    right.innerHTML=`
+      <div class='dist-title' style='font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #0f172a;'>Finding Distribution</div>
+      <div style='display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.875rem;'>
+        <span class='legend-item' data-legend-idx='0' style='display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;'>
+          <span style='width: 12px; height: 12px; border-radius: 50%; background: var(--high);'></span> 
+          <span>High (<span id='dist-high-count'>${counts.H}</span>, <span id='dist-high-pct'>${pct(counts.H,total)}%</span>)</span>
+        </span>
+        <span class='legend-item' data-legend-idx='1' style='display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;'>
+          <span style='width: 12px; height: 12px; border-radius: 50%; background: var(--med);'></span> 
+          <span>Medium (<span id='dist-med-count'>${counts.M}</span>, <span id='dist-med-pct'>${pct(counts.M,total)}%</span>)</span>
+        </span>
+        <span class='legend-item' data-legend-idx='2' style='display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;'>
+          <span style='width: 12px; height: 12px; border-radius: 50%; background: var(--low);'></span> 
+          <span>Low (<span id='dist-low-count'>${counts.L}</span>, <span id='dist-low-pct'>${pct(counts.L,total)}%</span>)</span>
+        </span>
+      </div>
+      <p id='dist-overall' style='line-height: 1.6; color: #475569;'>Overall Rating: <strong>${overall}</strong>. ${totalTxt}</p>
+    `;
+    
+    wrap.appendChild(left); 
+    wrap.appendChild(right);
+
+    const tableWrap=document.createElement('div');
+    tableWrap.className='mb-6';
+    tableWrap.style.borderRadius='0.75rem';
+    tableWrap.style.border='1px solid #e2e8f0';
+    tableWrap.style.position='relative';
+    
+    const table=document.createElement('table');
+    table.style.width='100%';
+    table.innerHTML=`<thead><tr>
+      <th style='width: 100px;'>Finding No.</th>
+      <th>Finding Details</th>
+      <th style='width: 120px;'>Priority</th>
+    </tr></thead>`;
+    
+    const tb=document.createElement('tbody');
+    findings.forEach(f=>{
+      const tr=document.createElement('tr');
+      const sevCls=f.sev==='H'?'no-high':(f.sev==='M'?'no-med':'no-low');
+      
+      const summary = (summaryMap && summaryMap[f.no]) ? summaryMap[f.no] : '';
+      const findingCell = summary 
+        ? `<div class='finding-title'>${f.text}</div><div class='finding-summary'>${summary}</div>`
+        : `<div class='finding-title'>${f.text}</div>`;
+
+      // Priority select: H, M, L. data-fno used to link to finding number cell
+      const selectHTML = `
+        <select class='select-field priority-select' data-fno='${f.no}' style='width:120px;'>
+          <option value='H' ${f.sev==='H'?'selected':''}>High</option>
+          <option value='M' ${f.sev==='M'?'selected':''}>Medium</option>
+          <option value='L' ${f.sev==='L'?'selected':''}>Low</option>
+        </select>`;
+
+      tr.innerHTML=`
+        <td style='text-align: center; font-weight: 700; font-size: 1rem;' class='${sevCls} finding-no' data-fno='${f.no}'>${f.no}</td>
+        <td>${findingCell}</td>
+        <td style='text-align: center;' class='priority-cell'>${selectHTML}</td>`;
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    tableWrap.appendChild(table);
+
+    // Attach change handlers to the priority selects to update the Finding Number color, badge and stats
+    setTimeout(() => {
+      const selects = document.querySelectorAll('#reportOutput .priority-select');
+
+      function recalcCounts(){
+        let h=0,m=0,l=0;
+        selects.forEach(s => {
+          const v=s.value;
+          if(v==='H') h++;
+          else if(v==='M') m++;
+          else if(v==='L') l++;
+        });
+        const totalCount = selects.length;
+        const elH=document.getElementById('stat-high');
+        const elM=document.getElementById('stat-med');
+        const elL=document.getElementById('stat-low');
+        const elT=document.getElementById('stat-total');
+        if(elH) elH.textContent = h;
+        if(elM) elM.textContent = m;
+        if(elL) elL.textContent = l;
+        if(elT) elT.textContent = totalCount;
+        // update pie if present
+        try{ const pie=document.getElementById('pie'); if(pie) drawPie(pie,[h,m,l]); }catch(e){}
+        // Update distribution texts and percentages if present
+        try{
+          const dh=document.getElementById('dist-high-count');
+          const dm=document.getElementById('dist-med-count');
+          const dl=document.getElementById('dist-low-count');
+          const ph=document.getElementById('dist-high-pct');
+          const pm=document.getElementById('dist-med-pct');
+          const pl=document.getElementById('dist-low-pct');
+          const overallEl=document.getElementById('dist-overall');
+          const t = totalCount || 0;
+          const phv = t? Math.round(h/t*100) : 0;
+          const pmv = t? Math.round(m/t*100) : 0;
+          const plv = t? Math.round(l/t*100) : 0;
+          if(dh) dh.textContent = h;
+          if(dm) dm.textContent = m;
+          if(dl) dl.textContent = l;
+          if(ph) ph.textContent = phv + '%';
+          if(pm) pm.textContent = pmv + '%';
+          if(pl) pl.textContent = plv + '%';
+          if(overallEl){
+            const categories=[];
+            if(h>0) categories.push(`<strong>${h}</strong> finding(s) (<strong>${phv}%</strong>) require immediate attention`);
+            if(m>0) categories.push(`<strong>${m}</strong> finding(s) (<strong>${pmv}%</strong>) require moderate attention`);
+            if(l>0) categories.push(`<strong>${l}</strong> finding(s) (<strong>${plv}%</strong>) require low attention`);
+            let totalTxt = `In summary, we found <strong>${t}</strong> findings`;
+            if(categories.length>0){
+              if(categories.length===1) totalTxt += ` out of which ${categories[0]}.`;
+              else if(categories.length===2) totalTxt += ` out of which ${categories[0]}, and ${categories[1]}.`;
+              else totalTxt += ` out of which ${categories[0]}, ${categories[1]}, and ${categories[2]}.`;
+            } else { totalTxt += `.`; }
+            overallEl.innerHTML = `Overall Rating: <strong>${overall}</strong>. ${totalTxt}`;
+          }
+        }catch(e){}
+      }
+
+      selects.forEach(sel => {
+        sel.addEventListener('change', function(e){
+          const val = this.value; // H, M, L
+          const row = this.closest('tr');
+          if(!row) return;
+          // Update finding number cell classes
+          const noTd = row.querySelector('td.finding-no');
+          if(noTd){
+            noTd.classList.remove('no-high','no-med','no-low');
+            noTd.classList.add(val==='H'?'no-high':(val==='M'?'no-med':'no-low'));
+          }
+          // If there is an existing badge span in the priority cell, update it
+          const badgeSpan = row.querySelector('td.priority-cell span.badge');
+          if(badgeSpan){
+            const cls = val==='H'?'high':(val==='M'?'med':'low');
+            const txt = val==='H'?'High':(val==='M'?'Medium':'Low');
+            badgeSpan.className = 'badge ' + cls;
+            badgeSpan.textContent = txt;
+          }
+          recalcCounts();
+        });
+      });
+
+      // initialize counts after wiring
+      recalcCounts();
+    }, 50);
+
+    let goodPara=''; 
+    if(aiGood && aiGood.length){ 
+      // If good practices are from Step 2 summary, they might be complete sentences
+      // Join them naturally based on their format
+      if(aiGood.length === 1) {
+        goodPara = aiGood[0]; // Single paragraph from summary
+      } else {
+        // Multiple items - check if they look like bullet points or sentences
+        const hasCompleteSentences = aiGood.some(g => g.length > 50 && /[.!?]$/.test(g));
+        if(hasCompleteSentences) {
+          goodPara = aiGood.join(' '); // Join as continuous text
+        } else {
+          goodPara = `We observed the following good practices: ${aiGood.join('; ')}.`; // Traditional format
+        }
+      }
+    } else { 
+      goodPara='We observed ongoing progress in policy consolidation, governance formalization, and alignment with applicable standards, which collectively strengthen the control environment.'; 
+    }
+    
+    const good=document.createElement('div'); 
+    good.className = 'good-practices-section';
+    good.style.background='linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)';
+    good.style.border='1px solid #86efac';
+    good.style.borderRadius='0.75rem';
+    good.style.padding='1.5rem';
+    good.innerHTML=`
+      <div style='font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; color: #166534; display: flex; align-items: center; gap: 0.5rem;'>
+        <span>✅</span>
+        <span>Good Practices Observed</span>
+      </div>
+      <p style='line-height: 1.6; color: #166534;'>${goodPara}</p>
+    `;
+
+    editableContainer.appendChild(headerImg);
+    editableContainer.appendChild(header); 
+    editableContainer.appendChild(statsGrid);
+    editableContainer.appendChild(wrap); 
+    editableContainer.appendChild(tableWrap); 
+    editableContainer.appendChild(good); 
+    
+    out.appendChild(editNotice);
+    out.appendChild(editableContainer);
+    
+    setTimeout(() => {
+      const pieCanvas = document.getElementById('pie');
+      drawPie(pieCanvas, [counts.H,counts.M,counts.L]);
+      
+      // Add hover zoom functionality to legend items
+      const reportOut = document.getElementById('reportOutput');
+      reportOut.style.overflow = 'visible';
+      const legendItems = reportOut.querySelectorAll('.legend-item');
+      
+      legendItems.forEach((item) => {
+        const idx = parseInt(item.getAttribute('data-legend-idx'), 10);
+        item.addEventListener('mouseenter', () => {
+          drawPie(pieCanvas, [counts.H, counts.M, counts.L], idx);
+        });
+        item.addEventListener('mouseleave', () => {
+          drawPie(pieCanvas, [counts.H, counts.M, counts.L]);
+        });
+      });
+      
+      // Add row zoom effect on finding number hover
+      const findingNoCells = reportOut.querySelectorAll('td.finding-no');
+      findingNoCells.forEach((cell) => {
+        const row = cell.closest('tr');
+        if(!row) return;
+        
+        row.style.transition = 'box-shadow 0.2s ease, background-color 0.2s ease, outline 0.2s ease, padding 0.2s ease';
+        
+        cell.addEventListener('mouseenter', () => {
+          row.style.boxShadow = '0 8px 16px rgba(0, 87, 184, 0.2), inset 0 0 0 3px rgba(220, 38, 38, 0.3)';
+          row.style.outline = '3px solid #dc2626';
+          row.style.outlineOffset = '-3px';
+          row.style.zIndex = '10';
+          row.style.position = 'relative';
+          row.style.backgroundColor = '#f0f9ff';
+          row.style.padding = '0.25rem';
+        });
+        
+        cell.addEventListener('mouseleave', () => {
+          row.style.boxShadow = '';
+          row.style.outline = '';
+          row.style.outlineOffset = '';
+          row.style.backgroundColor = '';
+          row.style.padding = '';
+        });
+      });
+      
+      // Add hover effect to Good Practices section
+      const goodPracticesSection = reportOut.querySelector('.good-practices-section');
+      if(goodPracticesSection) {
+        goodPracticesSection.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease, outline 0.2s ease';
+        goodPracticesSection.style.cursor = 'pointer';
+        
+        goodPracticesSection.addEventListener('mouseenter', () => {
+          goodPracticesSection.style.transform = 'scale(1.02)';
+          goodPracticesSection.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.2)';
+          goodPracticesSection.style.outline = '3px solid #16a34a';
+          goodPracticesSection.style.outlineOffset = '-3px';
+          goodPracticesSection.style.zIndex = '10';
+          goodPracticesSection.style.position = 'relative';
+        });
+        
+        goodPracticesSection.addEventListener('mouseleave', () => {
+          goodPracticesSection.style.transform = 'scale(1)';
+          goodPracticesSection.style.boxShadow = '';
+          goodPracticesSection.style.outline = '';
+          goodPracticesSection.style.outlineOffset = '';
+        });
+      }
+    }, 100);
+  }
+
+  document.getElementById('btnGenerateReport')?.addEventListener('click', async()=>{
+    const btn=document.getElementById('btnGenerateReport');
+    const { key, model } = getApiConfig();
+    const text=(document.getElementById('sourceText')?.value||'').trim();
+    
+    if(!text){ 
+      toast('⚠️ Please enter audit text first'); 
+      return; 
+    }
+    
+    if(btn){ 
+      btn.disabled=true; 
+      btn.classList.add('opacity-60','cursor-not-allowed'); 
+    }
+    
+    // Hide AV status banner (for regular report)
+    document.getElementById('avStatus')?.classList.add('hidden');
+    document.getElementById('avAudio')?.classList.add('hidden');
+    document.getElementById('btnDownloadAudio')?.classList.add('hidden');
+    
+    showBusy(true,'Generating professional report...');
+    
+    try{
+      const parsed=parse(text);
+      
+      // Extract good practices from the Summary created in Step 2
+      const step2Summary = (document.getElementById('aiSummary')?.value || '').trim();
+      let goodPractices = [];
+      let overallRatingFromSummary = '';
+      let countsFromSummary = null;
+      
+      if(step2Summary) {
+        // Extract Overall Rating from AI Summary
+        const ratingMatch = step2Summary.match(/Overall\s+rating:\s*(.+?)(?:\n|$)/i);
+        if(ratingMatch) {
+          overallRatingFromSummary = ratingMatch[1].trim();
+        }
+        
+        // Extract finding counts from AI Summary
+        // Format: "X findings (Y%) require immediate attention" = High
+        // Format: "X findings (Y%) require moderate attention" = Medium  
+        // Format: "X findings (Y%) require low attention" = Low
+        const highMatch = step2Summary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+immediate\s+attention/i);
+        const medMatch = step2Summary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+moderate\s+(?:range\s+of\s+)?attention/i);
+        const lowMatch = step2Summary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+low\s+(?:range\s+of\s+)?attention/i);
+        
+        if(highMatch || medMatch || lowMatch) {
+          countsFromSummary = {
+            H: highMatch ? parseInt(highMatch[1], 10) : 0,
+            M: medMatch ? parseInt(medMatch[1], 10) : 0,
+            L: lowMatch ? parseInt(lowMatch[1], 10) : 0
+          };
+        }
+        
+        // Parse good practices from the summary
+        const parts = step2Summary.split(/Good [Pp]ractices?:/i);
+        if(parts.length > 1) {
+          // Extract the good practices section until next major section or end
+          let goodSection = parts[1];
+          
+          // Look for section boundaries (paragraphs starting with common section headers or double newlines followed by new section)
+          const sectionMatch = goodSection.match(/^([\s\S]*?)(?:\n\n(?:[A-Z][a-z]+:|\[|The report has been)|\n*$)/);
+          if(sectionMatch) {
+            goodSection = sectionMatch[1];
+          }
+          
+          goodSection = goodSection.trim();
+          
+          // Check if it's a paragraph (no bullet points) or a list
+          const hasBullets = /^[-•*]/m.test(goodSection);
+          
+          if(hasBullets) {
+            // Parse as bullet list
+            goodPractices = goodSection
+              .split(/\n/)
+              .map(s => s.replace(/^[-•*]\s*/, '').trim())
+              .filter(s => s.length > 10); // Filter out very short lines
+          } else {
+            // Treat as single paragraph or multiple paragraphs
+            const paragraphs = goodSection.split(/\n+/).filter(s => s.trim().length > 0);
+            goodPractices = paragraphs.length > 0 ? paragraphs : [goodSection];
+          }
+        }
+      }
+      
+      // If no good practices found in Step 2 summary, generate them
+      let ai = { good: goodPractices };
+      if(goodPractices.length === 0 && key) {
+        ai = await summarizeTextForGood(key, model, parsed.findings);
+      }
+      
+      const summaryMap = await aiEnhancedSummaries(key, model, parsed.findings);
+      
+      renderReport({ 
+        ...parsed, 
+        summaryMap: summaryMap||{}, 
+        aiGood: ai.good,
+        overall: overallRatingFromSummary || parsed.overall, // Use AI Summary rating if available, fallback to parsed
+        counts: countsFromSummary || parsed.counts // Use AI Summary counts if available, fallback to parsed
+      });
+      
+      // Show download buttons after report generation
+      document.getElementById('downloadButtons')?.classList.remove('hidden');
+      document.getElementById('sizeControls')?.classList.remove('hidden');
+      
+      // Scroll to the report output
+      setTimeout(() => {
+        const reportOutput = document.getElementById('reportOutput');
+        if(reportOutput && reportOutput.innerHTML) {
+          reportOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+      
+      toast('✅ Report generated successfully!');
+    } catch(e) {
+      toast('❌ Report generation failed');
+    } finally {
+      showBusy(false);
+      if(btn){ 
+        btn.disabled=false; 
+        btn.classList.remove('opacity-60','cursor-not-allowed'); 
+      }
+    }
+  });
+
+  // Store audio blob globally for download
+  let currentAudioBlob = null;
+  let currentAudioUrl = null;
+
+  // Download HTML Report
+  document.getElementById('btnDownloadHTML')?.addEventListener('click', ()=>{
+    const reportHTML = document.getElementById('reportOutput')?.innerHTML;
+    if(!reportHTML || reportHTML.trim() === '') {
+      toast('⚠️ No report to download. Generate report first.');
+      return;
+    }
+    
+    const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khalifa University Audit Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #f1f5f9; padding: 2rem; }
+    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    :root{ 
+      --primary: #0057B8;
+      --primary-dark: #003d82;
+      --high:#dc2626; 
+      --med:#f59e0b; 
+      --low:#16a34a;
+    }
+    .badge { font-weight: 600; padding: 0.375rem 0.875rem; border-radius: 999px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge.high { background: rgba(220, 38, 38, 0.1); color: #dc2626; border: 1px solid rgba(220, 38, 38, 0.2); }
+    .badge.med { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge.low { background: rgba(22, 163, 74, 0.1); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.2); }
+    .no-high { background: var(--high); color: #fff; }
+    .no-med { background: var(--med); color: #fff; }
+    .no-low { background: var(--low); color: #fff; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1rem 0; }
+    thead th { background: linear-gradient(135deg, #0057B8 0%, #003d82 100%); color: white; font-weight: 600; text-align: left; padding: 1rem; }
+    thead th:first-child { border-radius: 0.5rem 0 0 0; }
+    thead th:last-child { border-radius: 0 0.5rem 0 0; }
+    tbody td { padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; }
+    .stat-card { background: white; border-radius: 0.75rem; padding: 1.5rem; text-align: center; border: 1px solid #e2e8f0; margin: 1rem; display: inline-block; min-width: 200px; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #0f172a; }
+    .stat-label { font-size: 0.875rem; color: #64748b; margin-top: 0.25rem; }
+    .finding-title { font-weight: 600; color: #0f172a; margin-bottom: 0.5rem; }
+    .finding-summary { color: #475569; font-size: 0.875rem; line-height: 1.6; }
+    @media print { body { background: white; } .container { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="sizeControlsDownload" style="margin-bottom: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem; border: 1px solid #d1d5db; position: relative;">
+      <div style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; color: #0f172a;">📐 Report Size Controls</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.875rem;">
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-weight: 500; color: #475569;">Logo Size</label>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="range" id="dlLogoSize" min="50" max="200" value="100" step="10" style="width: 120px;" />
+            <span id="dlLogoSizeLabel" style="color: #64748b; min-width: 40px;">100%</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-weight: 500; color: #475569;">Chart Size</label>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="range" id="dlChartSize" min="50" max="200" value="100" step="10" style="width: 120px;" />
+            <span id="dlChartSizeLabel" style="color: #64748b; min-width: 40px;">100%</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="font-weight: 500; color: #475569; grid-column: 1 / -1;">Font Sizes</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; padding: 0.5rem; background: white; border-radius: 0.375rem; border: 1px solid #e5e7eb;">
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Distribution Title</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontDistTitle" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontDistTitleLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Distribution Text</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontDistText" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontDistTextLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Table Headers</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontTableHeaders" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontTableHeadersLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Finding No.</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontFindingNo" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontFindingNoLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Summary Title</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontSummaryTitle" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontSummaryTitleLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">Summary Text</div>
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <input type="range" id="dlFontSummary" min="75" max="150" value="100" step="5" style="width: 70px;" />
+                <span id="dlFontSummaryLabel" style="font-size: 0.75rem; color: #64748b; min-width: 30px;">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${reportHTML}
+  </div>
+  <script>
+    (function(){
+      let dlSizeMultipliers = { logo: 1, chart: 1, distTitle: 1, distText: 1, tableHeaders: 1, findingNo: 1, summaryTitle: 1, summary: 1 };
+      
+      // Helper function to draw pie with optional zoom on a specific slice
+      function drawPieDownload(canvas, vals, zoomIndex=-1){
+        if(!canvas) return;
+        const ctx=canvas.getContext('2d');
+        const [h,m,l]=vals;
+        const total=h+m+l||1;
+        const colors=['#dc2626','#f59e0b','#16a34a'];
+        const labels=['High','Medium','Low'];
+        let cur=-Math.PI/2;
+        let cx=140, cy=140, r=100; // Centered in larger canvas
+        ctx.clearRect(0,0,280,280);
+        
+        [h,m,l].forEach((v,i)=>{
+          if(v===0) return;
+          const slice=v/total*2*Math.PI;
+          
+          let sliceRadius = r;
+          let sliceCx = cx;
+          let sliceCy = cy;
+          if(i === zoomIndex){
+            sliceRadius = r * 1.15;
+            const midAngle = cur + slice/2;
+            const offset = 15;
+            sliceCx = cx + Math.cos(midAngle) * offset;
+            sliceCy = cy + Math.sin(midAngle) * offset;
+          }
+          
+          ctx.fillStyle=colors[i];
+          ctx.beginPath();
+          ctx.moveTo(sliceCx,sliceCy);
+          ctx.arc(sliceCx,sliceCy,sliceRadius,cur,cur+slice);
+          ctx.closePath();
+          ctx.fill();
+          
+          const midAngle = cur + slice/2;
+          const textRadius = sliceRadius * 0.65;
+          const textX = sliceCx + Math.cos(midAngle) * textRadius;
+          const textY = sliceCy + Math.sin(midAngle) * textRadius;
+          
+          const pct = Math.round((v/total)*100);
+          
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 14px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.strokeStyle = colors[i];
+          ctx.lineWidth = 3;
+          
+          ctx.strokeText(\`\${labels[i]}, \${v}\`, textX, textY - 8);
+          ctx.fillText(\`\${labels[i]}, \${v}\`, textX, textY - 8);
+          
+          ctx.font = 'bold 13px Inter, sans-serif';
+          ctx.strokeText(\`\${pct}%\`, textX, textY + 8);
+          ctx.fillText(\`\${pct}%\`, textX, textY + 8);
+          
+          cur+=slice;
+        });
+      }
+      
+      function applySizeMultipliers(){
+        const logo = document.querySelector('img.report-header-img');
+        if(logo) logo.style.maxWidth = (dlSizeMultipliers.logo * 100) + '%';
+        
+        const pie = document.getElementById('pie');
+        if(pie){
+          pie.style.width = (dlSizeMultipliers.chart * 250) + 'px';
+          pie.style.height = (dlSizeMultipliers.chart * 250) + 'px';
+        }
+        
+        // Finding Distribution title (use class selector)
+        const distTitle = document.querySelector('.dist-title');
+        if(distTitle) distTitle.style.fontSize = (dlSizeMultipliers.distTitle * 100) + '%';
+        
+        // Table headers (all th elements)
+        const tableHeaders = document.querySelectorAll('thead th');
+        tableHeaders.forEach(th => {
+          th.style.fontSize = (dlSizeMultipliers.tableHeaders * 100) + '%';
+        });
+        
+        // Finding No. cells
+        const findingNoCells = document.querySelectorAll('td.finding-no');
+        findingNoCells.forEach(cell => {
+          cell.style.fontSize = (dlSizeMultipliers.findingNo * 100) + '%';
+        });
+        
+        // Finding summary title
+        const summaryTitles = document.querySelectorAll('.finding-title');
+        summaryTitles.forEach(title => {
+          title.style.fontSize = (dlSizeMultipliers.summaryTitle * 100) + '%';
+        });
+        
+        // Finding summary text
+        const summaryTexts = document.querySelectorAll('.finding-summary');
+        summaryTexts.forEach(text => {
+          text.style.fontSize = (dlSizeMultipliers.summary * 100) + '%';
+        });
+        
+        // Distribution text (counts and percentages)
+        const distElems = document.querySelectorAll('#dist-high-count, #dist-high-pct, #dist-med-count, #dist-med-pct, #dist-low-count, #dist-low-pct');
+        distElems.forEach(el => {
+          const container = el.closest('span') || el;
+          container.style.fontSize = (dlSizeMultipliers.distText * 100) + '%';
+        });
+        // Also scale the overall distribution paragraph (detailed summary)
+        const distOverall = document.querySelector('#dist-overall');
+        if(distOverall) distOverall.style.fontSize = (dlSizeMultipliers.distText * 100) + '%';
+      }
+      
+      document.getElementById('dlLogoSize')?.addEventListener('input', function(e){
+        dlSizeMultipliers.logo = parseInt(e.target.value) / 100;
+        document.getElementById('dlLogoSizeLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlChartSize')?.addEventListener('input', function(e){
+        dlSizeMultipliers.chart = parseInt(e.target.value) / 100;
+        document.getElementById('dlChartSizeLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontDistTitle')?.addEventListener('input', function(e){
+        dlSizeMultipliers.distTitle = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontDistTitleLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontDistText')?.addEventListener('input', function(e){
+        dlSizeMultipliers.distText = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontDistTextLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontTableHeaders')?.addEventListener('input', function(e){
+        dlSizeMultipliers.tableHeaders = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontTableHeadersLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontFindingNo')?.addEventListener('input', function(e){
+        dlSizeMultipliers.findingNo = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontFindingNoLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontSummaryTitle')?.addEventListener('input', function(e){
+        dlSizeMultipliers.summaryTitle = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontSummaryTitleLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      document.getElementById('dlFontSummary')?.addEventListener('input', function(e){
+        dlSizeMultipliers.summary = parseInt(e.target.value) / 100;
+        document.getElementById('dlFontSummaryLabel').textContent = e.target.value + '%';
+        applySizeMultipliers();
+      });
+      
+      function updateRow(select){
+        try{
+          const val = select.value;
+          const row = select.closest('tr');
+          if(!row) return;
+          const noTd = row.querySelector('td.finding-no');
+          if(noTd){
+            noTd.classList.remove('no-high','no-med','no-low');
+            noTd.classList.add(val==='H'?'no-high':(val==='M'?'no-med':'no-low'));
+          }
+        }catch(e){console.error(e)}
+      }
+      document.addEventListener('DOMContentLoaded', function(){
+        const selects = document.querySelectorAll('.priority-select');
+
+        function recalcCounts(){
+          let h=0,m=0,l=0;
+          selects.forEach(s=>{
+            const v=s.value;
+            if(v==='H') h++;
+            else if(v==='M') m++;
+            else if(v==='L') l++;
+          });
+          const elH=document.getElementById('stat-high');
+          const elM=document.getElementById('stat-med');
+          const elL=document.getElementById('stat-low');
+          const elT=document.getElementById('stat-total');
+          if(elH) elH.textContent = h;
+          if(elM) elM.textContent = m;
+          if(elL) elL.textContent = l;
+          if(elT) elT.textContent = (selects.length || 0);
+          // Update distribution counts and percentages in downloaded HTML
+          try{
+            const dh=document.getElementById('dist-high-count');
+            const dm=document.getElementById('dist-med-count');
+            const dl=document.getElementById('dist-low-count');
+            const ph=document.getElementById('dist-high-pct');
+            const pm=document.getElementById('dist-med-pct');
+            const pl=document.getElementById('dist-low-pct');
+            const overallEl=document.getElementById('dist-overall');
+            const t = selects.length || 0;
+            const phv = t? Math.round(h/t*100) : 0;
+            const pmv = t? Math.round(m/t*100) : 0;
+            const plv = t? Math.round(l/t*100) : 0;
+            if(dh) dh.textContent = h;
+            if(dm) dm.textContent = m;
+            if(dl) dl.textContent = l;
+            if(ph) ph.textContent = phv + '%';
+            if(pm) pm.textContent = pmv + '%';
+            if(pl) pl.textContent = plv + '%';
+            if(overallEl){
+              const overallText = (overallEl.querySelector('strong')?.textContent) || '';
+              const categories=[];
+              if(h>0) categories.push('<strong>'+h+'</strong> finding(s) (<strong>'+phv+'%</strong>) require immediate attention');
+              if(m>0) categories.push('<strong>'+m+'</strong> finding(s) (<strong>'+pmv+'%</strong>) require moderate attention');
+              if(l>0) categories.push('<strong>'+l+'</strong> finding(s) (<strong>'+plv+'%</strong>) require low attention');
+              var totalTxt = 'In summary, we found <strong>'+t+'</strong> findings';
+              if(categories.length>0){
+                if(categories.length===1) totalTxt += ' out of which '+categories[0]+'.';
+                else if(categories.length===2) totalTxt += ' out of which '+categories[0]+', and '+categories[1]+'.';
+                else totalTxt += ' out of which '+categories[0]+', '+categories[1]+', and '+categories[2]+'.';
+              } else { totalTxt += '.'; }
+              overallEl.innerHTML = 'Overall Rating: <strong>'+overallText+'</strong>. '+totalTxt;
+            }
+          }catch(e){}
+          
+          // Redraw pie with current counts
+          const pieCanvas = document.getElementById('pie');
+          if(pieCanvas) drawPieDownload(pieCanvas, [h, m, l]);
+        }
+
+        selects.forEach(s=>{
+          s.addEventListener('change', function(){ updateRow(this); recalcCounts(); });
+          // initialize display based on current value
+          updateRow(s);
+        });
+
+        // Initialize counts and draw pie
+        recalcCounts();
+        
+        // Add hover zoom functionality to legend items
+        const pieCanvas = document.getElementById('pie');
+        const legendItems = document.querySelectorAll('.legend-item');
+        legendItems.forEach((item) => {
+          const idx = parseInt(item.getAttribute('data-legend-idx'), 10);
+          item.addEventListener('mouseenter', () => {
+            drawPieDownload(pieCanvas, [h, m, l], idx);
+          });
+          item.addEventListener('mouseleave', () => {
+            drawPieDownload(pieCanvas, [h, m, l]);
+          });
+        });
+        
+        // Add row zoom effect on finding number hover
+        const findingNoCells = document.querySelectorAll('td.finding-no');
+        findingNoCells.forEach((cell) => {
+          const row = cell.closest('tr');
+          if(!row) return;
+          
+          row.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease, outline 0.2s ease';
+          
+          cell.addEventListener('mouseenter', () => {
+            row.style.transform = 'scale(1.02)';
+            row.style.boxShadow = '0 4px 12px rgba(0, 87, 184, 0.15)';
+            row.style.outline = '3px solid #dc2626';
+            row.style.outlineOffset = '-3px';
+            row.style.zIndex = '10';
+            row.style.position = 'relative';
+            row.style.backgroundColor = '#f0f9ff';
+          });
+          
+          cell.addEventListener('mouseleave', () => {
+            row.style.transform = 'scale(1)';
+            row.style.boxShadow = '';
+            row.style.outline = '';
+            row.style.outlineOffset = '';
+            row.style.backgroundColor = '';
+          });
+        });
+        
+        // Add hover effect to Good Practices section
+        const goodPracticesSection = document.querySelector('.good-practices-section');
+        if(goodPracticesSection) {
+          goodPracticesSection.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease, outline 0.2s ease';
+          goodPracticesSection.style.cursor = 'pointer';
+          
+          goodPracticesSection.addEventListener('mouseenter', () => {
+            goodPracticesSection.style.transform = 'scale(1.02)';
+            goodPracticesSection.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.2)';
+            goodPracticesSection.style.outline = '3px solid #16a34a';
+            goodPracticesSection.style.outlineOffset = '-3px';
+            goodPracticesSection.style.zIndex = '10';
+            goodPracticesSection.style.position = 'relative';
+          });
+          
+          goodPracticesSection.addEventListener('mouseleave', () => {
+            goodPracticesSection.style.transform = 'scale(1)';
+            goodPracticesSection.style.boxShadow = '';
+            goodPracticesSection.style.outline = '';
+            goodPracticesSection.style.outlineOffset = '';
+          });
+        }
+      });
+    })();
+  <\/script>
+</body>
+</html>`;
+    
+    const blob = new Blob([fullHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'KU_Audit_Report.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('📥 HTML Report downloaded');
+  });
+
+  // Download Audio
+  document.getElementById('btnDownloadAudio')?.addEventListener('click', ()=>{
+    if(!currentAudioBlob) {
+      toast('⚠️ No audio to download. Generate audio first.');
+      return;
+    }
+    
+    const url = URL.createObjectURL(currentAudioBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'KU_Audit_Report_Audio.mp3';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('🔊 Audio downloaded');
+  });
+
+  // Generate Audio Visual Report
+  document.getElementById('btnGenerateAudioVisual')?.addEventListener('click', async()=>{
+    const text=(document.getElementById('sourceText')?.value||'').trim();
+    const { key, model } = getApiConfig();
+    
+    if(!text){ 
+      toast('⚠️ Please enter audit text first'); 
+      return; 
+    }
+    
+    if(!key){ 
+      toast('⚠️ Please enter API key first'); 
+      return; 
+    }
+    
+    try{
+      // Check what already exists
+      const hasAISummary = !!(outEl?.value && outEl.value.trim().length > 0);
+      const hasAudio = !!(window.currentAudioBlob && window.currentAudioUrl);
+      const reportOutput = document.getElementById('reportOutput');
+      const hasHTMLReport = !!(reportOutput && reportOutput.innerHTML && reportOutput.innerHTML.trim().length > 0);
+      
+      let executiveSummary = '';
+      let audioBlob = null;
+      let audioUrl = '';
+      
+      // STEP 1: AI Summary - Use existing or generate new
+      if(hasAISummary) {
+        showBusy(true,'Using existing AI Summary...');
+        executiveSummary = outEl.value.trim();
+        toast('✅ Using existing AI Summary from Step 2');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        showBusy(true,'Step 1/4: Generating AI Executive Summary...');
+        
+        const parsed = parse(text);
+        
+        // Generate detailed summaries for each finding
+        const detailedSummariesPrompt = `You are an expert auditor. For each finding below, provide a clear, professional summary (2-3 sentences, max 60 words) that explains the finding in detail as if speaking to management. Format as JSON: {"3.1": "summary text", "3.2": "summary text", ...}
+
+Findings:
+${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
+
+        const summariesResp = await fetch('https://api.openai.com/v1/chat/completions',{
+          method:'POST',
+          headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+          body: JSON.stringify({
+            model,
+            messages:[
+              {role:'system', content:'You are an expert auditor. Provide clear, professional summaries suitable for spoken presentation.'},
+              {role:'user', content: detailedSummariesPrompt}
+            ],
+            temperature:0.3
+          })
+        });
+        
+        let findingSummaries = {};
+        if(summariesResp.ok) {
+          const summariesData = await summariesResp.json();
+          const summariesText = summariesData?.choices?.[0]?.message?.content?.trim()||'{}';
+          const jsonMatch = summariesText.match(/\{[\s\S]*\}/);
+          if(jsonMatch) {
+            findingSummaries = JSON.parse(jsonMatch[0]);
+          }
+        }
+        
+        // Build the findings text with detailed summaries
+        let findingsWithSummaries = '';
+        parsed.findings.forEach(f => {
+          const summary = findingSummaries[f.no] || f.text;
+          findingsWithSummaries += `${f.no}: ${summary}\n`;
+        });
+        
+        // Generate executive summary using the existing EXEC_PROMPT format
+        const EXEC_PROMPT = "Generate a plain-text executive summary for an audit report using this format and guidelines. Do not include any markdown or special characters. Follow exactly the structure below:\n\nWe are pleased to inform that we have completed our Review of [DEPARTMENT/AREA NAME] which falls under the [PARENT OFFICE] as part of the [YEAR] Approved Audit Plan. The Audit covered period from [START DATE] till [END DATE].\n\nOverall rating: [RATING]\n\nIn summary, we found [TOTAL] findings out of which [only mention non-zero categories with their counts and percentages - e.g., '5 findings (45%) require immediate attention, 6 findings (55%) require moderate range of attention.' If a category has zero findings, do not mention it at all].\n\nArea findings:\nList each finding with its detailed summary (2-3 sentences, suitable for spoken presentation) WITHOUT the finding number and WITHOUT the area title:\n- [Detailed 2-3 sentence summary of the finding]\n- [Detailed 2-3 sentence summary of the finding]\n...\n\nGood practices:\n[Write a paragraph or list of bullet points describing the good practices observed. Each bullet point should be on a new line starting with a dash (-)]\n\nThe report has been discussed with process owners and their feedback, action plans, and timelines were considered.";
+        
+        const execPrompt = `${EXEC_PROMPT}\n\nAudit text to summarize:\n\n${text}\n\nUse these detailed finding summaries in your response:\n${findingsWithSummaries}`;
+        
+        const summaryResp = await fetch('https://api.openai.com/v1/chat/completions',{
+          method:'POST',
+          headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+          body: JSON.stringify({
+            model,
+            messages:[
+              {role:'system', content:'You are an expert auditor. Generate executive summaries following the exact format provided, using the detailed finding summaries provided.'},
+              {role:'user', content: execPrompt}
+            ],
+            temperature:0.3
+          })
+        });
+        
+        if(!summaryResp.ok){ 
+          throw new Error('AI Summary generation failed'); 
+        }
+        
+        const summaryData = await summaryResp.json();
+        executiveSummary = summaryData?.choices?.[0]?.message?.content?.trim()||'';
+        
+        // Store the summary in Step 2 textarea
+        if(outEl) outEl.value = executiveSummary;
+        
+        toast('✅ AI Summary generated');
+      }
+      
+      // STEP 2: Audio - Use existing or generate new
+      if(hasAudio) {
+        showBusy(true,'Using existing Audio...');
+        audioBlob = window.currentAudioBlob;
+        audioUrl = window.currentAudioUrl;
+        toast('✅ Using existing Audio from Step 4');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        showBusy(true,'Step 2/4: Generating Audio from Summary...');
+        
+        // Set the radio button to "Summary" for TTS
+        const ttsFromSummaryRadio = document.getElementById('ttsFromSummary');
+        if(ttsFromSummaryRadio) {
+          ttsFromSummaryRadio.checked = true;
+        }
+        
+        const audioText = executiveSummary;
+        
+        if(!audioText || audioText.trim().length === 0) {
+          throw new Error('No summary available for audio generation');
+        }
+        
+        // Truncate if too long (OpenAI TTS has 4096 char limit)
+        let finalAudioText = audioText;
+        if(audioText.length > 4000) {
+          finalAudioText = audioText.substring(0, 4000) + '...';
+          toast('⚠️ Audio text truncated to 4000 characters');
+        }
+        
+        const voice = document.getElementById('ttsVoice')?.value || 'alloy';
+        const speed = parseFloat(document.getElementById('ttsSpeed')?.value || '1.0');
+        
+        const ttsResp = await fetch('https://api.openai.com/v1/audio/speech', {
+          method:'POST',
+          headers:{ 'Authorization':`Bearer ${key}`, 'Content-Type':'application/json' },
+          body: JSON.stringify({ model:'tts-1', input:finalAudioText, voice, speed })
+        });
+        
+        if(!ttsResp.ok) {
+          throw new Error('Audio generation failed');
+        }
+        
+        audioBlob = await ttsResp.blob();
+        currentAudioBlob = audioBlob;
+        audioUrl = URL.createObjectURL(audioBlob);
+        currentAudioUrl = audioUrl;
+        
+        toast('✅ Audio generated');
+      }
+      
+      // STEP 3: HTML Report - Use existing or generate new
+      if(hasHTMLReport) {
+        showBusy(true,'Using existing HTML Report...');
+        toast('✅ Using existing HTML Report from Step 5');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        showBusy(true,'Step 3/4: Generating HTML Report...');
+        
+        const parsed = parse(text);
+        
+        // Extract good practices from the summary
+        let goodPractices = [];
+        let overallRatingFromSummary = '';
+        let countsFromSummary = null;
+        
+        // Extract Overall Rating from executive summary
+        const ratingMatch = executiveSummary.match(/Overall\s+rating:\s*(.+?)(?:\n|$)/i);
+        if(ratingMatch) {
+          overallRatingFromSummary = ratingMatch[1].trim();
+        }
+        
+        // Extract finding counts from AI Summary
+        const highMatch = executiveSummary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+immediate\s+attention/i);
+        const medMatch = executiveSummary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+moderate\s+(?:range\s+of\s+)?attention/i);
+        const lowMatch = executiveSummary.match(/(\d+)\s+findings?\s+\([^)]+\)\s+require\s+low\s+(?:range\s+of\s+)?attention/i);
+        
+        if(highMatch || medMatch || lowMatch) {
+          countsFromSummary = {
+            H: highMatch ? parseInt(highMatch[1], 10) : 0,
+            M: medMatch ? parseInt(medMatch[1], 10) : 0,
+            L: lowMatch ? parseInt(lowMatch[1], 10) : 0
+          };
+        }
+        
+        const parts = executiveSummary.split(/Good [Pp]ractices?:/i);
+        if(parts.length > 1) {
+          let goodSection = parts[1];
+          const sectionMatch = goodSection.match(/^([\s\S]*?)(?:\n\n(?:[A-Z][a-z]+:|\[|The report has been)|\n*$)/);
+          if(sectionMatch) {
+            goodSection = sectionMatch[1];
+          }
+          goodSection = goodSection.trim();
+          const hasBullets = /^[-•*]/m.test(goodSection);
+          if(hasBullets) {
+            goodPractices = goodSection.split(/\n/).map(s => s.replace(/^[-•*]\s*/, '').trim()).filter(s => s.length > 10);
+          } else {
+            const paragraphs = goodSection.split(/\n+/).filter(s => s.trim().length > 0);
+            goodPractices = paragraphs.length > 0 ? paragraphs : [goodSection];
+          }
+        }
+        
+        let ai = { good: goodPractices };
+        if(goodPractices.length === 0) {
+          ai = await summarizeTextForGood(key, model, parsed.findings);
+        }
+        
+        const summaryMap = await aiEnhancedSummaries(key, model, parsed.findings);
+        renderReport({ 
+          ...parsed, 
+          summaryMap: summaryMap||{}, 
+          aiGood: ai.good,
+          overall: overallRatingFromSummary || parsed.overall, // Use AI Summary rating if available
+          counts: countsFromSummary || parsed.counts // Use AI Summary counts if available
+        });
+        
+        toast('✅ HTML Report generated');
+      }
+      
+      // STEP 4: Create Video File
+      showBusy(true,'Step 4/4: Creating Video File... This may take a few moments...');
+      
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for report to render
+      
+      const reportOutputFinal = document.getElementById('reportOutput');
+      if(!reportOutputFinal || !reportOutputFinal.innerHTML) {
+        throw new Error('Report generation failed');
+      }
+      
+      // Create video using html2canvas and canvas recording
+      try {
+        const canvas = await html2canvas(reportOutputFinal, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          logging: false,
+          windowWidth: 1200,
+          windowHeight: reportOutputFinal.scrollHeight
+        });
+        
+        // Create a video using canvas and audio
+        const videoBlob = await createVideoFromCanvasAndAudio(canvas, audioBlob);
+        
+        // Store video blob for download
+        window.currentVideoBlob = videoBlob;
+        
+        toast('✅ Video created successfully!');
+        
+      } catch(videoError) {
+        console.warn('Video creation not fully supported, providing HTML+Audio instead:', videoError);
+        toast('⚠️ Video creation limited. HTML and Audio available separately.');
+      }
+      
+      // Show audio player
+      const audioEl = document.getElementById('avAudio');
+      if(audioEl) {
+        audioEl.src = audioUrl;
+        audioEl.classList.remove('hidden');
+        audioEl.play().catch(e => {
+          console.log('Auto-play blocked, user can click play button');
+        });
+      }
+      
+      // Show status banner
+      document.getElementById('avStatus')?.classList.remove('hidden');
+      
+      // Show download buttons
+      document.getElementById('downloadButtons')?.classList.remove('hidden');
+      document.getElementById('btnDownloadAudio')?.classList.remove('hidden');
+      
+      // Add video download button if video was created
+      if(window.currentVideoBlob) {
+        let btnDownloadVideo = document.getElementById('btnDownloadVideo');
+        if(!btnDownloadVideo) {
+          btnDownloadVideo = document.createElement('button');
+          btnDownloadVideo.id = 'btnDownloadVideo';
+          btnDownloadVideo.className = 'btn-success';
+          btnDownloadVideo.textContent = '🎬 Download Video';
+          btnDownloadVideo.addEventListener('click', ()=>{
+            if(!window.currentVideoBlob) {
+              toast('⚠️ No video to download');
+              return;
+            }
+            const url = URL.createObjectURL(window.currentVideoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'KU_Audit_Report_Video.webm';
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('🎬 Video downloaded');
+          });
+          document.getElementById('downloadButtons')?.appendChild(btnDownloadVideo);
+        }
+        btnDownloadVideo.classList.remove('hidden');
+      }
+      
+      toast('✅ Audio Visual Report generated successfully!');
+      
+      // Scroll to the status banner
+      setTimeout(() => {
+        const statusEl = document.getElementById('avStatus');
+        if(statusEl) {
+          statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+    } catch(e) {
+      console.error('Audio Visual Generation Error:', e);
+      const errorMsg = e.message || 'Unknown error occurred';
+      toast(`❌ Audio Visual report generation failed: ${errorMsg}`);
+    } finally {
+      showBusy(false);
+    }
+  });
+
+  // Helper function to create video from canvas and audio
+  async function createVideoFromCanvasAndAudio(canvas, audioBlob) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Get audio duration
+        const audio = new Audio();
+        audio.src = URL.createObjectURL(audioBlob);
+        await new Promise((res) => {
+          audio.addEventListener('loadedmetadata', res);
+        });
+        const duration = audio.duration;
+        
+        // Create a video stream from canvas
+        const stream = canvas.captureStream(1); // 1 FPS for static image
+        
+        // Add audio track to stream
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(
+          await navigator.mediaDevices.getUserMedia({ audio: false }).catch(() => {
+            // Fallback: create video without audio sync
+            return new MediaStream();
+          })
+        );
+        
+        // Use MediaRecorder to record the video
+        const chunks = [];
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp8',
+          videoBitsPerSecond: 2500000
+        });
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            chunks.push(e.data);
+          }
+        };
+        
+        mediaRecorder.onstop = () => {
+          const videoBlob = new Blob(chunks, { type: 'video/webm' });
+          resolve(videoBlob);
+        };
+        
+        mediaRecorder.onerror = (e) => {
+          reject(e);
+        };
+        
+        mediaRecorder.start();
+        
+        // Stop recording after duration or 10 seconds max
+        setTimeout(() => {
+          mediaRecorder.stop();
+          stream.getTracks().forEach(track => track.stop());
+        }, Math.min(duration * 1000, 10000));
+        
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+
+  document.getElementById('btnCopySrc')?.addEventListener('click', async()=>{ 
+    try{ 
+      await navigator.clipboard.writeText(srcEl?.value||''); 
+      toast('📋 Text copied'); 
+    }catch{ 
+      toast('❌ Copy failed'); 
+    } 
+  });
+  
+  document.getElementById('btnClearSrc')?.addEventListener('click', ()=>{ 
+    if(srcEl) srcEl.value=''; 
+    if(outEl) outEl.value=''; 
+    const tx=document.getElementById('translated'); 
+    if(tx) tx.value=''; 
+    const ro=document.getElementById('reportOutput'); 
+    if(ro) ro.innerHTML=''; 
+    const audioEl=document.getElementById('ttsAudio'); 
+    if(audioEl) { 
+      audioEl.pause(); 
+      audioEl.src=''; 
+      audioEl.classList.add('hidden'); 
+    }
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    if(fileNameDisplay) fileNameDisplay.classList.add('hidden');
+    toast('🗑️ All cleared');
+  });
+
+  // Simple validation tests (no console.assert)
+  (function(){
+    try {
+      const s=splitSentences('A. B! C؟ D.');
+      if(s.length < 3) throw new Error('splitSentences test failed');
+      
+      const p=parse('3.1 ABC High\n3.2 DEF Medium\n3.3 GHI Low');
+      if(p.total !== 3 || p.counts.H !== 1 || p.counts.M !== 1 || p.counts.L !== 1) {
+        throw new Error('parse test failed');
+      }
+      
+      const p2=parse('3.12 Foo High');
+      if(p2.total !== 12) throw new Error('total test failed');
+      
+      console.log('%c✅ All tests passed','color: green; font-weight: bold;');
+    } catch(e) {
+      console.error('❌ Tests failed:', e);
+    }
+  })();
+  </script>
+</body>
+</html>
