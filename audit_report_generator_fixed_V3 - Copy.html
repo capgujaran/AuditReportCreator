@@ -112,6 +112,13 @@
               </select>
             </div>
           </div>
+          <div class="mt-3 flex items-start gap-3">
+            <input id="rememberApi" type="checkbox" class="mt-1" />
+            <div>
+              <label for="rememberApi" class="text-sm font-medium text-gray-700">Remember API key and model on this device</label>
+              <p class="text-xs text-gray-500">Stored locally in your browser for convenience. Uncheck to clear saved credentials.</p>
+            </div>
+          </div>
           <div class="info-box">
             💡 <strong>Tip:</strong> Enter your API key once to unlock all AI-powered features including summaries, translations, and enhanced reports.
           </div>
@@ -191,8 +198,8 @@
           <div class="flex flex-wrap items-center gap-4 mb-4">
             <label class="text-sm font-medium text-gray-700">Target Language:</label>
             <select id="targetLang" class="select-field" style="width: auto; min-width: 160px;">
+              <option value="ar" selected>Arabic</option>
               <option value="en">English</option>
-              <option value="ar">Arabic</option>
               <option value="fr">French</option>
               <option value="es">Spanish</option>
               <option value="de">German</option>
@@ -206,11 +213,11 @@
             <div class="flex items-center gap-3 ml-4">
               <span class="text-sm font-medium text-gray-700">Source:</span>
               <label class="flex items-center gap-2 text-sm">
-                <input type="radio" name="txSrc" id="txFromOriginal" checked class="text-cyan-600" />
+                <input type="radio" name="txSrc" id="txFromOriginal" class="text-cyan-600" />
                 <span>Original</span>
               </label>
               <label class="flex items-center gap-2 text-sm">
-                <input type="radio" name="txSrc" id="txFromSummary" class="text-cyan-600" />
+                <input type="radio" name="txSrc" id="txFromSummary" checked class="text-cyan-600" />
                 <span>Summary</span>
               </label>
             </div>
@@ -263,11 +270,13 @@
               <option value="1.25">1.25x (Fast)</option>
               <option value="1.5">1.5x (Faster)</option>
             </select>
-            
+
             <button id="btnSpeak" class="btn-warning">🎤 Generate Audio</button>
             <button id="btnStopTTS" class="btn-secondary">⏹️ Stop</button>
           </div>
-          
+
+          <div id="ttsCharCounter" class="text-sm text-gray-600 mb-2">Text length: 0 / 4000</div>
+
           <div class="info-box">
             💡 <strong>Note:</strong> Uses OpenAI TTS API for high-quality voice synthesis. Audio will play automatically when ready.
           </div>
@@ -527,6 +536,16 @@
   const sumModeEl=document.getElementById('sumMode');
   const basicWrap=document.getElementById('basicWrap');
   const aiWrap=document.getElementById('aiWrap');
+  const apiKeyEl=document.getElementById('commonApiKey');
+  const apiModelEl=document.getElementById('commonModel');
+  const rememberApiEl=document.getElementById('rememberApi');
+  const ttsCharCounter=document.getElementById('ttsCharCounter');
+
+  const STORAGE_KEYS = {
+    remember:'ku-audit-remember-api',
+    key:'ku-audit-api-key',
+    model:'ku-audit-api-model'
+  };
 
   function showBusy(show, text='Processing...'){
     const ov=document.getElementById('busyOverlay');
@@ -544,10 +563,42 @@
   }
 
   function getApiConfig() {
-    const key = (document.getElementById('commonApiKey')?.value || '').trim();
-    const model = document.getElementById('commonModel')?.value || 'gpt-4o-mini';
+    const key = (apiKeyEl?.value || '').trim();
+    const model = apiModelEl?.value || 'gpt-4o-mini';
     return { key, model };
   }
+
+  function loadApiConfigFromStorage() {
+    const remember = localStorage.getItem(STORAGE_KEYS.remember) === 'true';
+    if(rememberApiEl) rememberApiEl.checked = remember;
+
+    if(remember) {
+      if(apiKeyEl) apiKeyEl.value = localStorage.getItem(STORAGE_KEYS.key) || '';
+      if(apiModelEl) {
+        const savedModel = localStorage.getItem(STORAGE_KEYS.model);
+        if(savedModel) apiModelEl.value = savedModel;
+      }
+    }
+  }
+
+  function persistApiConfig() {
+    const remember = rememberApiEl?.checked;
+    if(remember) {
+      localStorage.setItem(STORAGE_KEYS.remember, 'true');
+      if(apiKeyEl) localStorage.setItem(STORAGE_KEYS.key, apiKeyEl.value.trim());
+      if(apiModelEl) localStorage.setItem(STORAGE_KEYS.model, apiModelEl.value);
+    } else {
+      localStorage.setItem(STORAGE_KEYS.remember, 'false');
+      localStorage.removeItem(STORAGE_KEYS.key);
+      localStorage.removeItem(STORAGE_KEYS.model);
+    }
+  }
+
+  loadApiConfigFromStorage();
+
+  rememberApiEl?.addEventListener('change', persistApiConfig);
+  apiKeyEl?.addEventListener('input', ()=>{ if(rememberApiEl?.checked) persistApiConfig(); });
+  apiModelEl?.addEventListener('change', ()=>{ if(rememberApiEl?.checked) persistApiConfig(); });
 
   // File upload handlers
   document.getElementById('btnUploadFile')?.addEventListener('click', () => {
@@ -588,6 +639,8 @@
       if (srcEl) {
         srcEl.value = extractedText;
       }
+
+      updateTtsCharCount();
 
       toast(`✅ Text extracted successfully! (${extractedText.length} characters)`);
     } catch (error) {
@@ -694,12 +747,6 @@
     fileInput.dispatchEvent(new Event('change'));
   });
 
-  function getApiConfig() {
-    const key = (document.getElementById('commonApiKey')?.value || '').trim();
-    const model = document.getElementById('commonModel')?.value || 'gpt-4o-mini';
-    return { key, model };
-  }
-
   sumModeEl?.addEventListener('change', ()=>{
     const isAI = sumModeEl.value === 'executive';
     basicWrap?.classList.toggle('hidden', isAI);
@@ -717,6 +764,7 @@
     const sents=splitSentences(text).slice(0,n);
     if(outEl) outEl.value=sents.join(' ');
     toast('✅ Summary created');
+    updateTtsCharCount();
   });
 
   const EXEC_PROMPT = "Generate a plain-text executive summary for an audit report using this format and guidelines. Do not include any markdown or special characters. Follow exactly the structure below:\n\nWe are pleased to inform that we have completed our Review of [DEPARTMENT/AREA NAME] which falls under the [PARENT OFFICE] as part of the [YEAR] Approved Audit Plan. The Audit covered period from [START DATE] till [END DATE].\n\nOverall rating: [RATING]\n\nIn summary, we found [TOTAL] findings out of which [only mention non-zero categories with their counts and percentages - e.g., '5 findings (45%) require immediate attention, 6 findings (55%) require moderate range of attention.' If a category has zero findings, do not mention it at all].\n\nArea findings:\nList each finding with its detailed summary (2-3 sentences, suitable for spoken presentation) WITHOUT the finding number and WITHOUT the area title:\n- [Detailed 2-3 sentence summary of the finding]\n- [Detailed 2-3 sentence summary of the finding]\n...\n\nGood practices:\n[Write a paragraph or list of bullet points describing the good practices observed. Each bullet point should be on a new line starting with a dash (-)]\n\nThe report has been discussed with process owners and their feedback, action plans, and timelines were considered.";
@@ -787,9 +835,10 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       const summary=data?.choices?.[0]?.message?.content?.trim()||'';
       if(outEl) outEl.value=summary;
       toast('✅ Executive summary created with detailed findings');
-    }catch(e){ 
+      updateTtsCharCount();
+    }catch(e){
       console.error(e);
-      toast('❌ AI request failed'); 
+      toast('❌ AI request failed');
     }
     finally{ showBusy(false); }
   });
@@ -847,33 +896,57 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
         const translated = await translateChunk(text, lang);
         if(txEl) txEl.value = translated;
       }
-      
+
       toast(`✅ Translated to ${langMap[lang]||lang}`);
-    }catch(e){ 
+      updateTtsCharCount();
+    }catch(e){
       console.error('Translation error:', e);
-      toast('❌ Translation failed - text may be too long'); 
+      toast('❌ Translation failed - text may be too long');
     }
     finally{ showBusy(false); }
   });
 
-  // === TTS (OpenAI) ===
-  let currentAudio = null;
-  
-  document.getElementById('btnSpeak')?.addEventListener('click', async()=>{
+  function getSelectedTtsText() {
     const ttsFromSum=document.getElementById('ttsFromSummary')?.checked;
     const ttsFromTx=document.getElementById('ttsFromTranslated')?.checked;
-    let text='';
-    if(ttsFromTx){ text=document.getElementById('translated')?.value||''; }
-    else if(ttsFromSum){ text=outEl?.value||''; }
-    else { text=srcEl?.value||''; }
-    
+    if(ttsFromTx){ return document.getElementById('translated')?.value||''; }
+    if(ttsFromSum){ return outEl?.value||''; }
+    return srcEl?.value||'';
+  }
+
+  function updateTtsCharCount() {
+    if(!ttsCharCounter) return;
+    const text = getSelectedTtsText();
+    const limit = 4000;
+    const len = text.length;
+    ttsCharCounter.classList.remove('text-red-600','text-amber-600','text-green-600','text-gray-600');
+    const color = len > limit ? 'text-red-600' : (len > limit * 0.85 ? 'text-amber-600' : 'text-green-600');
+    ttsCharCounter.classList.add(color || 'text-gray-600');
+    const suffix = len > limit ? ' (will be trimmed to fit OpenAI limit)' : '';
+    ttsCharCounter.textContent = `Text length: ${len} / ${limit}${suffix}`;
+  }
+
+  srcEl?.addEventListener('input', updateTtsCharCount);
+  outEl?.addEventListener('input', updateTtsCharCount);
+  document.getElementById('translated')?.addEventListener('input', updateTtsCharCount);
+  document.querySelectorAll('input[name="ttsSrc"]').forEach(r=>r.addEventListener('change', updateTtsCharCount));
+  updateTtsCharCount();
+
+  // === TTS (OpenAI) ===
+  let currentAudio = null;
+
+  document.getElementById('btnSpeak')?.addEventListener('click', async()=>{
+    let text = getSelectedTtsText();
+
     if(!text){ toast('⚠️ No text to speak'); return; }
-    
+
     // Truncate if too long (OpenAI TTS has 4096 char limit)
     if(text.length > 4000) {
-      text = text.substring(0, 4000) + '...';
-      toast('⚠️ Text truncated to 4000 characters');
+      text = text.substring(0, 4000);
+      toast('⚠️ Text trimmed to 4000 characters');
     }
+
+    updateTtsCharCount();
     
     const { key, model } = getApiConfig();
     if(!key){ toast('⚠️ Please enter API key first'); return; }
@@ -2552,11 +2625,11 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     } 
   });
   
-  document.getElementById('btnClearSrc')?.addEventListener('click', ()=>{ 
-    if(srcEl) srcEl.value=''; 
-    if(outEl) outEl.value=''; 
-    const tx=document.getElementById('translated'); 
-    if(tx) tx.value=''; 
+  document.getElementById('btnClearSrc')?.addEventListener('click', ()=>{
+    if(srcEl) srcEl.value='';
+    if(outEl) outEl.value='';
+    const tx=document.getElementById('translated');
+    if(tx) tx.value='';
     const ro=document.getElementById('reportOutput'); 
     if(ro) ro.innerHTML=''; 
     const audioEl=document.getElementById('ttsAudio'); 
@@ -2568,6 +2641,7 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     const fileNameDisplay = document.getElementById('fileNameDisplay');
     if(fileNameDisplay) fileNameDisplay.classList.add('hidden');
     toast('🗑️ All cleared');
+    updateTtsCharCount();
   });
 
   // Simple validation tests (no console.assert)
