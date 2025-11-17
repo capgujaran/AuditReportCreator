@@ -855,17 +855,40 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     'hi':'Hindi','zh-CN':'Chinese','ru':'Russian','pt':'Portuguese','ja':'Japanese'
   };
 
-  async function translateChunk(text, lang) {
-    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${lang}`);
-    const data = await resp.json();
-    if(data?.responseData?.translatedText) {
-      return data.responseData.translatedText;
+  async function translateChunk(text, lang, apiConfig) {
+    const { key, model } = apiConfig || getApiConfig();
+    if(!key) throw new Error('Missing OpenAI API key');
+
+    const target = langMap[lang] || lang;
+    const resp = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: model || 'gpt-4o-mini',
+        messages:[
+          {role:'system', content:'You are a precise translation engine. Translate the user input into the requested target language while preserving meaning, tone, punctuation, line breaks, numbers, and any HTML tags or structure. Return only the translated text without quotes or commentary.'},
+          {role:'user', content:`Target language: ${target}\n\nText to translate:\n${text}`}
+        ],
+        temperature:0.2
+      })
+    });
+
+    if(!resp.ok) {
+      const detail = await resp.text();
+      throw new Error(`OpenAI translation failed (${resp.status}): ${detail}`);
     }
-    throw new Error('Translation failed');
+
+    const data = await resp.json();
+    const translated = data?.choices?.[0]?.message?.content?.trim();
+    if(!translated) throw new Error('OpenAI returned an empty translation');
+    return translated;
   }
 
   async function translateWithChunks(text, lang) {
     if(!text) return '';
+
+    const apiConfig = getApiConfig();
+    if(!apiConfig.key) throw new Error('Please enter your OpenAI API key in Step 1 before translating');
 
     // Split into chunks of 400 characters to avoid API limit
     if(text.length > 400) {
@@ -886,16 +909,16 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       const translations = [];
       for(let i = 0; i < chunks.length; i++) {
         showBusy(true, `Translating... (${i+1}/${chunks.length})`);
-        const translated = await translateChunk(chunks[i].trim(), lang);
+        const translated = await translateChunk(chunks[i].trim(), lang, apiConfig);
         translations.push(translated);
-        await new Promise(resolve => setTimeout(resolve, 300)); // Rate limit delay
+        await new Promise(resolve => setTimeout(resolve, 300)); // Gentle pacing between requests
       }
 
       return translations.join(' ');
     }
 
     // Single translation for short text
-    return translateChunk(text, lang);
+    return translateChunk(text, lang, apiConfig);
   }
 
   async function translateReportContent(lang) {
@@ -929,6 +952,8 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     const txFromSum=document.getElementById('txFromSummary')?.checked;
     const text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
     if(!text){ toast('⚠️ No text to translate'); return; }
+    const { key } = getApiConfig();
+    if(!key){ toast('⚠️ Please enter your OpenAI API key in Step 1'); return; }
     const lang=document.getElementById('targetLang')?.value||'en';
     showBusy(true, 'Translating...');
     try{
@@ -942,7 +967,7 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       updateTtsCharCount();
     }catch(e){
       console.error('Translation error:', e);
-      toast('❌ Translation failed - text may be too long');
+      toast(`❌ Translation failed: ${e.message||'unknown error'}`);
     }
     finally{ showBusy(false); }
   });
