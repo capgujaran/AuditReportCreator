@@ -958,14 +958,27 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
   }
 
     document.getElementById('btnTranslate')?.addEventListener('click', async()=>{
+    const btn=document.getElementById('btnTranslate');
     const txFromSum=document.getElementById('txFromSummary')?.checked;
-    const text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
+    let text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
+
+    // Fallback: use the rendered report text if the chosen source is empty
+    if(!text){
+      const reportText = document.getElementById('reportOutput')?.innerText?.trim() || '';
+      if(reportText){
+        text = reportText;
+      }
+    }
+
     if(!text){ toast('⚠️ No text to translate'); return; }
     const { key } = getApiConfig();
     if(!key){ toast('⚠️ Please enter your OpenAI API key in Step 1'); return; }
     const lang=document.getElementById('targetLang')?.value||'en';
     showBusy(true, 'Translating...');
     try{
+        btn?.setAttribute('disabled','true');
+        btn?.classList.add('opacity-60','cursor-not-allowed');
+
         const txEl=document.getElementById('translated');
         const translatedText = await translateWithChunks(text, lang);
         if(txEl) txEl.value = translatedText;
@@ -978,7 +991,11 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       console.error('Translation error:', e);
       toast(`❌ Translation failed: ${e.message||'unknown error'}`);
     }
-    finally{ showBusy(false); }
+    finally{
+      btn?.removeAttribute('disabled');
+      btn?.classList.remove('opacity-60','cursor-not-allowed');
+      showBusy(false);
+    }
   });
 
     function getSelectedTtsText() {
