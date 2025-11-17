@@ -927,6 +927,7 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       currentReportLang = lang || 'en';
     const reportOutput = document.getElementById('reportOutput');
     if(!reportOutput || !reportOutput.innerHTML.trim()) return;
+    reportOutput.dataset.lang = currentReportLang;
 
     const walker = document.createTreeWalker(
       reportOutput,
@@ -948,6 +949,11 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       } catch(err) {
         console.error('Report translation failed for node', err);
       }
+    }
+
+    const distOverall = document.getElementById('dist-overall');
+    if(distOverall){
+      distOverall.setAttribute('data-lang', currentReportLang);
     }
   }
 
@@ -1243,13 +1249,15 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
       }
     }
 
-    async function buildDistributionText(overallLabel, totalTxt) {
+  async function buildDistributionText(overallLabel, totalTxt) {
       const base = `Overall Rating: <strong>${overallLabel}</strong>. ${totalTxt}`;
+      const distNode = document.getElementById('dist-overall');
       if(currentReportLang && currentReportLang !== 'en') {
         try {
           return await translateWithChunks(base, currentReportLang);
         } catch(err) {
           console.error('Distribution translation failed', err);
+          return distNode?.innerHTML || base;
         }
       }
       return base;
@@ -1385,8 +1393,9 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
   }
 
   function renderReport({title,total,overall,counts,findings, summaryMap, aiGood}){
-    const out=document.getElementById('reportOutput'); 
+    const out=document.getElementById('reportOutput');
     out.innerHTML='';
+    out.dataset.lang = currentReportLang || 'en';
     
     // Add editable notice
     const editNotice = document.createElement('div');
@@ -1490,11 +1499,11 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
           <span>Medium (<span id='dist-med-count'>${counts.M}</span>, <span id='dist-med-pct'>${pct(counts.M,total)}%</span>)</span>
         </span>
         <span class='legend-item' data-legend-idx='2' style='display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;'>
-          <span style='width: 12px; height: 12px; border-radius: 50%; background: var(--low);'></span> 
+          <span style='width: 12px; height: 12px; border-radius: 50%; background: var(--low);'></span>
           <span>Low (<span id='dist-low-count'>${counts.L}</span>, <span id='dist-low-pct'>${pct(counts.L,total)}%</span>)</span>
         </span>
       </div>
-      <p id='dist-overall' style='line-height: 1.6; color: #475569;'>Overall Rating: <strong>${overall}</strong>. ${totalTxt}</p>
+      <p id='dist-overall' data-lang='${currentReportLang || 'en'}' style='line-height: 1.6; color: #475569;'>Overall Rating: <strong>${overall}</strong>. ${totalTxt}</p>
     `;
     
     wrap.appendChild(left); 
@@ -1991,6 +2000,17 @@ ${findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
   <script>
     (function(){
       let dlSizeMultipliers = { logo: 1, chart: 1, distTitle: 1, distText: 1, tableHeaders: 1, findingNo: 1, summaryTitle: 1, summary: 1 };
+
+      function buildDistributionText(overallLabel, totalTxt){
+        const overallEl = document.getElementById('dist-overall');
+        const base = `Overall Rating: <strong>${overallLabel}</strong>. ${totalTxt}`;
+        if(!overallEl) return base;
+        const lang = overallEl.getAttribute('data-lang') || 'en';
+        if(lang !== 'en'){
+          return overallEl.innerHTML || base;
+        }
+        return base;
+      }
       
       // Helper function to draw pie with optional zoom on a specific slice
       function drawPieDownload(canvas, vals, zoomIndex=-1){
