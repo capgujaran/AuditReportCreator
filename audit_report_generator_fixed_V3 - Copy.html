@@ -864,6 +864,67 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     throw new Error('Translation failed');
   }
 
+  async function translateWithChunks(text, lang) {
+    if(!text) return '';
+
+    // Split into chunks of 400 characters to avoid API limit
+    if(text.length > 400) {
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      let chunks = [];
+      let currentChunk = '';
+
+      for(const sentence of sentences) {
+        if((currentChunk + sentence).length > 400) {
+          if(currentChunk) chunks.push(currentChunk);
+          currentChunk = sentence;
+        } else {
+          currentChunk += sentence;
+        }
+      }
+      if(currentChunk) chunks.push(currentChunk);
+
+      const translations = [];
+      for(let i = 0; i < chunks.length; i++) {
+        showBusy(true, `Translating... (${i+1}/${chunks.length})`);
+        const translated = await translateChunk(chunks[i].trim(), lang);
+        translations.push(translated);
+        await new Promise(resolve => setTimeout(resolve, 300)); // Rate limit delay
+      }
+
+      return translations.join(' ');
+    }
+
+    // Single translation for short text
+    return translateChunk(text, lang);
+  }
+
+  async function translateReportContent(lang) {
+    const reportOutput = document.getElementById('reportOutput');
+    if(!reportOutput || !reportOutput.innerHTML.trim()) return;
+
+    const walker = document.createTreeWalker(
+      reportOutput,
+      NodeFilter.SHOW_TEXT,
+      { acceptNode: (node) => node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT }
+    );
+
+    const textNodes = [];
+    while(walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    for(const node of textNodes) {
+      const original = node.nodeValue;
+      try {
+        showBusy(true, 'Translating report...');
+        const translated = await translateWithChunks(original, lang);
+        node.nodeValue = translated;
+      } catch(err) {
+        console.error('Report translation failed for node', err);
+      }
+    }
+  }
+
   document.getElementById('btnTranslate')?.addEventListener('click', async()=>{
     const txFromSum=document.getElementById('txFromSummary')?.checked;
     const text=txFromSum? (outEl?.value||'') : (srcEl?.value||'');
@@ -872,37 +933,10 @@ ${parsed.findings.map(f=>`${f.no}: ${f.text}`).join('\n')}`;
     showBusy(true, 'Translating...');
     try{
       const txEl=document.getElementById('translated');
-      
-      // Split into chunks of 400 characters to avoid API limit
-      if(text.length > 400) {
-        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-        let chunks = [];
-        let currentChunk = '';
-        
-        for(const sentence of sentences) {
-          if((currentChunk + sentence).length > 400) {
-            if(currentChunk) chunks.push(currentChunk);
-            currentChunk = sentence;
-          } else {
-            currentChunk += sentence;
-          }
-        }
-        if(currentChunk) chunks.push(currentChunk);
-        
-        const translations = [];
-        for(let i = 0; i < chunks.length; i++) {
-          showBusy(true, `Translating... (${i+1}/${chunks.length})`);
-          const translated = await translateChunk(chunks[i].trim(), lang);
-          translations.push(translated);
-          await new Promise(resolve => setTimeout(resolve, 300)); // Rate limit delay
-        }
-        
-        if(txEl) txEl.value = translations.join(' ');
-      } else {
-        // Single translation for short text
-        const translated = await translateChunk(text, lang);
-        if(txEl) txEl.value = translated;
-      }
+      const translatedText = await translateWithChunks(text, lang);
+      if(txEl) txEl.value = translatedText;
+
+      await translateReportContent(lang);
 
       toast(`✅ Translated to ${langMap[lang]||lang}`);
       updateTtsCharCount();
